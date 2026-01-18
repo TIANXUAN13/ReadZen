@@ -26,6 +26,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Debug inputs
+        run: |
+          echo "Input tag: ${{ github.event.inputs.tag }}"
+          echo "Input password: ${{ github.event.inputs.password }}"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -55,11 +60,22 @@ jobs:
           build-args: |
             ADMIN_PASSWORD=${{ github.event.inputs.password || 'admin123' }}
 
-      - name: Create Release Asset
-        if: ${{ github.event.inputs.tag != 'latest' }}
+      - name: Get tag value for comparison
+        id: tag-info
         run: |
+          TAG="${{ github.event.inputs.tag }}"
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "is_latest=false" >> $GITHUB_OUTPUT
+          if [ "$TAG" == "latest" ]; then
+            echo "is_latest=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release Asset
+        if: steps.tag-info.outputs.is_latest != 'true'
+        run: |
+          TAG="${{ github.event.inputs.tag }}"
           # Save Docker image as tar file
-          docker save ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${{ github.event.inputs.tag }} > daily-article-reader.tar
+          docker save ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${TAG} > daily-article-reader.tar
           
           # Create checksum
           sha256sum daily-article-reader.tar > daily-article-reader.tar.sha256
@@ -68,13 +84,14 @@ jobs:
           ls -la
 
       - name: Upload Release Asset
-        if: ${{ github.event.inputs.tag != 'latest' }}
+        if: steps.tag-info.outputs.is_latest != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
           name: Release ${{ github.event.inputs.tag }}
           draft: false
           prerelease: false
+          generate_release_notes: true
           files: |
             daily-article-reader.tar
             daily-article-reader.tar.sha256
@@ -83,8 +100,9 @@ jobs:
 
       - name: Summary
         run: |
+          TAG="${{ github.event.inputs.tag }}"
           echo "Docker image built and pushed successfully!"
-          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${{ github.event.inputs.tag || 'latest' }}"
-          if [ "${{ github.event.inputs.tag }}" != "latest" ]; then
-            echo "Release assets uploaded to GitHub Release ${{ github.event.inputs.tag }}"
+          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${TAG}"
+          if [ "$TAG" != "latest" ]; then
+            echo "Release created at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
           fi
