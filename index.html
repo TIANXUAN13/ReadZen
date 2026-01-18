@@ -197,6 +197,35 @@
                     {{ activeTab === 'daily' ? '每日一文' : (activeTab === 'favorites' ? '收藏文章' : '本地文章') }}
                 </h2>
                 <div class="flex items-center gap-2">
+                    <!-- 登录/注册按钮 (未登录时显示) -->
+                    <template v-if="!user">
+                        <button 
+                            @click="openAuth('login')"
+                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                        >
+                            登录
+                        </button>
+                        <button 
+                            @click="openAuth('register')"
+                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white']"
+                        >
+                            注册
+                        </button>
+                    </template>
+                    
+                    <!-- 已登录显示用户名和登出 -->
+                    <template v-else>
+                        <span :class="['text-sm mr-2', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
+                            {{ user.username }}
+                        </span>
+                        <button 
+                            @click="doLogout"
+                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700']"
+                        >
+                            登出
+                        </button>
+                    </template>
+                    
                     <!-- 设置按钮 -->
                     <button 
                         @click="showSettings = !showSettings"
@@ -241,8 +270,86 @@
                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                          </svg>
                      </button>
-                 </div>
-            </header>
+                  </div>
+             </header>
+
+            <!-- 登录/注册弹窗 -->
+            <div v-if="showAuth" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showAuth = false">
+                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                            {{ authMode === 'login' ? '登录' : '注册' }}
+                        </h3>
+                        <button @click="showAuth = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- 登录/注册切换 -->
+                    <div class="flex gap-2 mb-4">
+                        <button 
+                            @click="authMode = 'login'"
+                            :class="['flex-1 py-2 rounded text-sm font-medium transition-colors', authMode === 'login' ? (backgroundColor === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white') : (backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')]"
+                        >
+                            登录
+                        </button>
+                        <button 
+                            @click="authMode = 'register'"
+                            :class="['flex-1 py-2 rounded text-sm font-medium transition-colors', authMode === 'register' ? (backgroundColor === 'dark' ? 'bg-green-600 text-white' : 'bg-green-500 text-white') : (backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')]"
+                        >
+                            注册
+                        </button>
+                    </div>
+                    
+                    <!-- 登录表单 -->
+                    <div v-if="authMode === 'login'">
+                        <input 
+                            v-model="loginForm.username"
+                            type="text"
+                            placeholder="用户名"
+                            :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <input 
+                            v-model="loginForm.password"
+                            type="password"
+                            placeholder="密码"
+                            @keyup.enter="doLogin"
+                            :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <button 
+                            @click="doLogin"
+                            :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                        >
+                            登录
+                        </button>
+                    </div>
+                    
+                    <!-- 注册表单 -->
+                    <div v-else>
+                        <input 
+                            v-model="regForm.username"
+                            type="text"
+                            placeholder="用户名"
+                            :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <input 
+                            v-model="regForm.password"
+                            type="password"
+                            placeholder="密码"
+                            @keyup.enter="doRegister"
+                            :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <button 
+                            @click="doRegister"
+                            :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600']"
+                        >
+                            注册
+                        </button>
+                    </div>
+                </div>
+            </div>
 
             <!-- 主内容区 -->
             <main class="flex-1 overflow-hidden relative">
@@ -483,7 +590,7 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, computed, watch } = Vue;
+        const { createApp, ref, onMounted, computed, watch, reactive } = Vue;
 
         createApp({
             setup() {
@@ -505,6 +612,77 @@
                 const favoriteArticles = ref([]);
                 // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
                 const isViewingLocal = ref(false);
+                
+                // 认证相关状态
+                const user = ref(null);
+                const showAuth = ref(false);
+                const authMode = ref('login');
+                const loginForm = reactive({ username: '', password: '' });
+                const regForm = reactive({ username: '', password: '' });
+                
+                // 检查当前登录用户
+                const checkCurrentUser = async () => {
+                    try {
+                        const res = await fetch('/api/auth/me', { credentials: 'include' });
+                        if (res.ok) user.value = await res.json();
+                        else user.value = null;
+                    } catch (e) {
+                        user.value = null;
+                    }
+                };
+                
+                // 打开认证弹窗
+                const openAuth = (mode) => {
+                    authMode.value = mode;
+                    loginForm.username = '';
+                    loginForm.password = '';
+                    regForm.username = '';
+                    regForm.password = '';
+                    showAuth.value = true;
+                };
+                
+                // 登录
+                const doLogin = async () => {
+                    const resp = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: loginForm.username, password: loginForm.password }),
+                        credentials: 'include'
+                    });
+                    if (resp.ok) {
+                        user.value = await resp.json();
+                        showAuth.value = false;
+                    } else {
+                        const err = await resp.json();
+                        alert(err.error || '登录失败');
+                    }
+                };
+                
+                // 注册
+                const doRegister = async () => {
+                    const resp = await fetch('/api/auth/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: regForm.username, password: regForm.password }),
+                        credentials: 'include'
+                    });
+                    if (resp.ok) {
+                        user.value = await resp.json();
+                        showAuth.value = false;
+                    } else {
+                        const err = await resp.json();
+                        alert(err.error || '注册失败');
+                    }
+                };
+                
+                // 登出
+                const doLogout = async () => {
+                    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+                    user.value = null;
+                };
+                
+                // 初始检查用户
+                checkCurrentUser();
 
                 // 背景色配置
                 const bgColors = {
@@ -742,30 +920,88 @@
                  });
 
                 // 切换收藏状态
-                const toggleFavorite = () => {
+                const toggleFavorite = async () => {
                     if (!article.value) return;
                     const isFav = favoriteArticles.value.some(fav => fav.id === article.value.id);
                     if (isFav) {
+                        // 取消收藏
+                        const fav = favoriteArticles.value.find(fav => fav.id === article.value.id);
+                        if (fav && fav.fav_id) {
+                            await fetch(`/api/favorites?id=${fav.fav_id}`, { method: 'DELETE', credentials: 'include' });
+                        }
                         favoriteArticles.value = favoriteArticles.value.filter(fav => fav.id !== article.value.id);
                     } else {
-                        favoriteArticles.value.push({ ...article.value, dateAdded: new Date().toISOString() });
+                        // 添加收藏到服务器
+                        if (!user.value) {
+                            alert('请先登录后再收藏文章');
+                            openAuth('login');
+                            return;
+                        }
+                        const resp = await fetch('/api/favorites', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                id: article.value.id,
+                                title: article.value.title,
+                                author: article.value.author,
+                                content: article.value.content
+                            }),
+                            credentials: 'include'
+                        });
+                        if (resp.ok) {
+                            const data = await resp.json();
+                            favoriteArticles.value.push({ ...article.value, fav_id: data.id, dateAdded: new Date().toISOString() });
+                        } else {
+                            const err = await resp.json();
+                            alert(err.error || '收藏失败');
+                        }
                     }
-                    localStorage.setItem('favoriteArticles', JSON.stringify(favoriteArticles.value));
                 };
 
                 // 是否已收藏
                 const isFavorited = computed(() => article.value && favoriteArticles.value.some(fav => fav.id === article.value.id));
 
                 // 移除收藏
-                const removeFavorite = (id) => {
+                const removeFavorite = async (id) => {
+                    const fav = favoriteArticles.value.find(f => f.id === id);
+                    if (fav && fav.fav_id) {
+                        await fetch(`/api/favorites?id=${fav.fav_id}`, { method: 'DELETE', credentials: 'include' });
+                    }
                     favoriteArticles.value = favoriteArticles.value.filter(fav => fav.id !== id);
-                    localStorage.setItem('favoriteArticles', JSON.stringify(favoriteArticles.value));
                 };
+
+                // 从服务器加载收藏列表
+                const loadFavorites = async () => {
+                    if (!user.value) {
+                        favoriteArticles.value = [];
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/favorites', { credentials: 'include' });
+                        if (res.ok) {
+                            favoriteArticles.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('加载收藏失败:', e);
+                    }
+                };
+
+                // 当用户登录后加载收藏
+                watch(() => user.value, (newUser) => {
+                    if (newUser) {
+                        loadFavorites();
+                    } else {
+                        favoriteArticles.value = [];
+                    }
+                }, { immediate: true });
 
                 onMounted(() => {
                     initData();
                     getArticle();
-                    favoriteArticles.value = JSON.parse(localStorage.getItem('favoriteArticles') || '[]');
+                    checkCurrentUser();
+                    if (user.value) {
+                        loadFavorites();
+                    }
                 });
 
                 return {
@@ -780,18 +1016,28 @@
                      localArticles,
                      favoriteArticles,
                      toggleFavorite,
-                     isFavorited,
-                     removeFavorite,
-                     bgColors,
+                      isFavorited,
+                      removeFavorite,
+                      loadFavorites,
+                      bgColors,
                      readingTime,
                      isViewingLocal,
-                    formatDate,
-                    getArticle,
-                    adjustFontSize,
-                    viewLocalArticle,
-                    selectFolder,
-                    isSidebarCollapsed,
-                    handleArticleScroll
+                     user,
+                     showAuth,
+                     authMode,
+                     loginForm,
+                     regForm,
+                     openAuth,
+                     doLogin,
+                     doRegister,
+                     doLogout,
+                     formatDate,
+                     getArticle,
+                     adjustFontSize,
+                     viewLocalArticle,
+                     selectFolder,
+                     isSidebarCollapsed,
+                     handleArticleScroll
                 };
             }
         }).mount('#app');
