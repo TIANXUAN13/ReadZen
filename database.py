@@ -96,3 +96,27 @@ def get_user_username(user_id):
     row = conn.execute('SELECT username FROM users WHERE id=?', (user_id,)).fetchone()
     conn.close()
     return row['username'] if row else None
+
+
+def get_all_users():
+    conn = get_conn()
+    rows = conn.execute('SELECT id, username, created_at FROM users ORDER BY created_at DESC').fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_user_by_id(user_id):
+    conn = get_conn()
+    row = conn.execute('SELECT id, username, created_at FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def delete_user(user_id):
+    conn = get_conn()
+    # 先删除用户的收藏
+    conn.execute('DELETE FROM favorites WHERE user_id = ?', (user_id,))
+    # 删除用户
+    conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
+    conn.commit()
+    conn.close()

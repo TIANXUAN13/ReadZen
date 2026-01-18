@@ -1,0 +1,25 @@
+FROM python:3.10-slim
+
+# 安装 sqlite3 和其他工具（方便进入容器操作数据库）
+RUN apt-get update && apt-get install -y \
+    sqlite3 \
+    vim \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PORT=5000
+ENV HOST=0.0.0.0
+ENV ADMIN_PASSWORD=admin123
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 5000
+
+CMD ["python", "server.py"]

@@ -156,10 +156,27 @@
                                  >
                                      {{ favoriteArticles.length }}
                                  </span>
-                             </button>
-                         </li>
-                     </ul>
-                 </nav>
+                              </button>
+                          </li>
+                          <!-- 用户管理入口 (仅 admin 可见) -->
+                          <li v-if="user && user.username === 'admin'">
+                              <button
+                                  @click="activeTab = 'admin'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                      activeTab === 'admin'
+                                          ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-purple-100 text-purple-800')
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                  ]"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                  </svg>
+                                  <span>用户管理</span>
+                              </button>
+                          </li>
+                      </ul>
+                  </nav>
                 
                 <!-- 底部信息 -->
                 <div class="mt-8 pb-4 text-center">
@@ -193,9 +210,24 @@
         <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'ml-64']">
             <!-- 顶部操作栏 -->
             <header :class="['p-4 md:p-6 flex justify-between items-center border-b transition-colors duration-300', backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white']">
-                <h2 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">
-                    {{ activeTab === 'daily' ? '每日一文' : (activeTab === 'favorites' ? '收藏文章' : '本地文章') }}
-                </h2>
+                <!-- 左侧：菜单按钮和标题放在同一行 -->
+                <div class="flex items-center">
+                    <!-- 菜单按钮（侧边栏关闭时显示） -->
+                    <button 
+                        v-if="isSidebarCollapsed"
+                        @click="isSidebarCollapsed = false"
+                        :class="['p-1.5 rounded transition-colors mr-1', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600']"
+                        aria-label="打开菜单"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                    
+                    <h2 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">
+                        {{ activeTab === 'daily' ? '每日一文' : (activeTab === 'favorites' ? '收藏文章' : (activeTab === 'admin' ? '用户管理' : '本地文章')) }}
+                    </h2>
+                </div>
                 <div class="flex items-center gap-2">
                     <!-- 登录/注册按钮 (未登录时显示) -->
                     <template v-if="!user">
@@ -488,10 +520,84 @@
                                  </div>
                              </div>
                          </div>
-                     </div>
-                 </div>
+                      </div>
+                  </div>
 
-                 <!-- 设置面板遮罩层 -->
+                  <!-- 用户管理页面 (仅 admin 可见) -->
+                  <div v-else-if="activeTab === 'admin'" class="h-full overflow-y-auto p-6">
+                      <div class="max-w-4xl mx-auto">
+                          <div v-if="loadingUsers" class="text-center py-12">
+                              <div class="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4" :style="{ borderColor: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }"></div>
+                              <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">加载中...</p>
+                          </div>
+                          <div v-else-if="!user || user.username !== 'admin'" class="text-center py-12">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                              </svg>
+                              <p class="text-lg opacity-60">权限不足</p>
+                              <p class="text-sm opacity-40 mt-2">只有管理员可以访问此页面</p>
+                          </div>
+                          <div v-else>
+                              <div :class="['flex justify-between items-center mb-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                  <div>
+                                      <h3 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">用户列表</h3>
+                                      <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">共 {{ allUsers.length }} 个用户</p>
+                                  </div>
+                                  <button 
+                                      @click="loadAllUsers"
+                                      :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                  >
+                                      刷新
+                                  </button>
+                              </div>
+                              
+                              <div v-if="allUsers.length === 0" class="text-center py-12">
+                                  <p :class="['text-lg opacity-60', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">暂无用户</p>
+                              </div>
+                              
+                              <div v-else :class="['rounded-lg overflow-hidden', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                  <table class="w-full">
+                                      <thead :class="['text-left text-sm font-medium', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700']">
+                                          <tr>
+                                              <th class="px-4 py-3">ID</th>
+                                              <th class="px-4 py-3">用户名</th>
+                                              <th class="px-4 py-3">注册时间</th>
+                                              <th class="px-4 py-3 text-right">操作</th>
+                                          </tr>
+                                      </thead>
+                                      <tbody :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
+                                          <tr 
+                                              v-for="u in allUsers" 
+                                              :key="u.id"
+                                              :class="['border-t', backgroundColor === 'dark' ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50']"
+                                          >
+                                              <td class="px-4 py-3">{{ u.id }}</td>
+                                              <td class="px-4 py-3">
+                                                  <span :class="['font-medium', u.username === 'admin' ? 'text-purple-500' : '']">{{ u.username }}</span>
+                                                  <span v-if="u.username === 'admin'" class="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Admin</span>
+                                                  <span v-if="u.id === user.id" class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">自己</span>
+                                              </td>
+                                              <td class="px-4 py-3">{{ new Date(u.created_at).toLocaleString() }}</td>
+                                              <td class="px-4 py-3 text-right">
+                                                  <button 
+                                                      v-if="u.id !== user.id"
+                                                      @click="deleteUser(u.id)"
+                                                      :class="['px-3 py-1 rounded text-sm font-medium text-red-500 hover:bg-red-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
+                                                      title="删除用户"
+                                                  >
+                                                      删除
+                                                  </button>
+                                                  <span v-else class="text-gray-400 text-sm">-</span>
+                                              </td>
+                                          </tr>
+                                      </tbody>
+                                  </table>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- 设置面板遮罩层 -->
                 <div v-if="showSettings" class="fixed inset-0 z-20 bg-black bg-opacity-10" @click="showSettings = false"></div>
                 
                 <!-- 设置面板 -->
@@ -986,6 +1092,60 @@
                     }
                 };
 
+                // 用户管理相关
+                const allUsers = ref([]);
+                const loadingUsers = ref(false);
+
+                const loadAllUsers = async () => {
+                    if (!user.value || user.value.username !== 'admin') {
+                        allUsers.value = [];
+                        return;
+                    }
+                    loadingUsers.value = true;
+                    try {
+                        const res = await fetch('/api/admin/users', { credentials: 'include' });
+                        if (res.ok) {
+                            allUsers.value = await res.json();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '加载用户列表失败');
+                        }
+                    } catch (e) {
+                        console.error('加载用户列表失败:', e);
+                        alert('加载用户列表失败');
+                    } finally {
+                        loadingUsers.value = false;
+                    }
+                };
+
+                const deleteUser = async (userId) => {
+                    if (!confirm('确定要删除该用户吗？该用户的所有收藏也将被删除。')) {
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/admin/users/${userId}`, { 
+                            method: 'DELETE',
+                            credentials: 'include' 
+                        });
+                        if (res.ok) {
+                            allUsers.value = allUsers.value.filter(u => u.id !== userId);
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '删除用户失败');
+                        }
+                    } catch (e) {
+                        console.error('删除用户失败:', e);
+                        alert('删除用户失败');
+                    }
+                };
+
+                // 当切换到用户管理页面时加载用户列表
+                watch(() => activeTab.value, (newTab) => {
+                    if (newTab === 'admin') {
+                        loadAllUsers();
+                    }
+                });
+
                 // 当用户登录后加载收藏
                 watch(() => user.value, (newUser) => {
                     if (newUser) {
@@ -1016,10 +1176,10 @@
                      localArticles,
                      favoriteArticles,
                      toggleFavorite,
-                      isFavorited,
-                      removeFavorite,
-                      loadFavorites,
-                      bgColors,
+                     isFavorited,
+                     removeFavorite,
+                     loadFavorites,
+                     bgColors,
                      readingTime,
                      isViewingLocal,
                      user,
@@ -1031,6 +1191,10 @@
                      doLogin,
                      doRegister,
                      doLogout,
+                     allUsers,
+                     loadingUsers,
+                     loadAllUsers,
+                     deleteUser,
                      formatDate,
                      getArticle,
                      adjustFontSize,
