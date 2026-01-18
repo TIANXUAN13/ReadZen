@@ -503,6 +503,8 @@
                 // 侧边栏展开/折叠状态
                 const isSidebarCollapsed = ref(false);
                 const favoriteArticles = ref([]);
+                // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
+                const isViewingLocal = ref(false);
 
                 // 背景色配置
                 const bgColors = {
@@ -541,6 +543,7 @@
                 const getArticle = async () => {
                     loading.value = true;
                     error.value = null;
+                    isViewingLocal.value = false;
                     
                     try {
                         // 1. 尝试直接请求
@@ -562,6 +565,7 @@
                         // 假设API返回结构包含 title, author, content
                         // 有些API返回的 content 带有 HTML 标签，有些没有，这里做个简单清洗
                         const newArticle = {
+                            id: Date.now().toString(36) + Math.random().toString(36).substr(2),
                             title: data.title || data.c_title || '无标题',
                             author: data.author || data.c_author || '未知',
                             content: data.content || data.c_content || '<p>暂无内容</p>'
@@ -588,8 +592,9 @@
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.webkitdirectory = true;
+                    input.directory = true;
                     input.multiple = true;
-                    input.accept = '.txt,.md,.text';
+                    input.accept = '.txt,.md,.text,.log,.article,text/plain,text/markdown';
 
                     input.onchange = (e) => {
                         const files = e.target.files;
@@ -610,15 +615,40 @@
                     localArticles.value = [];
                     let loadedCount = 0;
                     const totalFiles = files.length;
+                    let validFilesCount = 0;
+
+                    // 先统计有效的txt/md文件数量
+                    Array.from(files).forEach(file => {
+                        const fileName = file.name.toLowerCase();
+                        if (fileName.endsWith('.txt') || fileName.endsWith('.md') || 
+                            fileName.endsWith('.text') || fileName.endsWith('.log') ||
+                            file.type.includes('text') || file.type === '') {
+                            validFilesCount++;
+                        }
+                    });
+
+                    if (validFilesCount === 0) {
+                        alert('所选文件夹中没有找到txt或md格式的文章文件');
+                        return;
+                    }
 
                     Array.from(files).forEach(file => {
                         const fileName = file.name.toLowerCase();
-                        if (fileName.endsWith('.txt') || fileName.endsWith('.md') || file.type.includes('text')) {
+                        // 扩展文件类型检测
+                        const isTextFile = fileName.endsWith('.txt') || 
+                                          fileName.endsWith('.md') || 
+                                          fileName.endsWith('.text') || 
+                                          fileName.endsWith('.log') ||
+                                          fileName.endsWith('.article') ||
+                                          file.type.includes('text') ||
+                                          file.type === '';
+
+                        if (isTextFile && !file.name.startsWith('.')) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
                                 const content = e.target.result;
                                 const lines = content.split('\n');
-                                let title = file.name.replace(/\.(txt|md)$/i, '');
+                                let title = file.name.replace(/\.(txt|md|text|log)$/i, '');
                                 let author = '未知作者';
                                 let articleContent = content;
 
@@ -627,8 +657,8 @@
                                 }
                                 if (lines.length > 1) {
                                     const authorLine = lines[1].trim();
-                                    if (authorLine.startsWith('作者：') || authorLine.startsWith('Author:') || authorLine.startsWith('作者:') || authorLine.startsWith('Author:')) {
-                                        author = authorLine.replace(/作者：|作者:|Author:|Author:/, '').trim();
+                                    if (authorLine.startsWith('作者：') || authorLine.startsWith('作者:') || authorLine.startsWith('Author:') || authorLine.startsWith('author:')) {
+                                        author = authorLine.replace(/作者：|作者:|Author:|author:/, '').trim();
                                         articleContent = lines.slice(2).join('\n');
                                     }
                                 }
@@ -650,7 +680,9 @@
                                 });
 
                                 loadedCount++;
-                                console.log(`Loaded ${loadedCount}/${totalFiles}: ${title}`);
+                                if (loadedCount === validFilesCount) {
+                                    console.log(`成功加载 ${localArticles.value.length} 篇文章`);
+                                }
                             };
                             reader.onerror = (e) => {
                                 console.error('Error reading file:', file.name, e);
@@ -668,6 +700,7 @@
                     article.value = localArticle;
                     activeTab.value = 'daily';
                     isSidebarCollapsed.value = true;
+                    isViewingLocal.value = true;
                 };
 
                 // 处理文章滚动事件
@@ -693,6 +726,11 @@
                 // 监听标签切换
                 watch(activeTab, (newTab) => {
                     if (newTab === 'daily') {
+                        // 如果正在查看本地/收藏文章，不自动获取新文章
+                        if (isViewingLocal.value) {
+                            loading.value = false;
+                            return;
+                        }
                         // 如果有保存的当前文章，直接显示，否则获取新文章
                         if (currentDailyArticle.value) {
                             article.value = currentDailyArticle.value;
@@ -745,7 +783,8 @@
                      isFavorited,
                      removeFavorite,
                      bgColors,
-                    readingTime,
+                     readingTime,
+                     isViewingLocal,
                     formatDate,
                     getArticle,
                     adjustFontSize,
