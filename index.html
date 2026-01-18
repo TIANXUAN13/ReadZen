@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>每日一文 | 享受阅读时光</title>
+    
+    <!-- 引入 Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com?plugins=typography"></script>
+    
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+
+    <!-- 引入字体 (思源宋体，更有文学感) -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- 自定义配置 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        serif: ['"Noto Serif SC"', 'serif'],
+                    },
+                    colors: {
+                        'paper': '#fdfbf7', // 仿纸张颜色
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            font-family: 'Noto Serif SC', serif;
+        }
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db; 
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af; 
+        }
+    </style>
+</head>
+<body class="antialiased h-screen flex flex-col">
+
+    <div id="app" class="w-full h-full flex flex-row">
+        <!-- 左侧导航面板 -->
+        <aside :class="[
+            'absolute left-0 top-0 bottom-0 z-20 border-r transition-all duration-300 ease-in-out',
+            isSidebarCollapsed ? 'w-0' : 'w-64',
+            backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'
+        ]">
+            <div class="h-full flex flex-col p-4" v-if="!isSidebarCollapsed">
+                <!-- 折叠/展开按钮 -->
+                <button 
+                    @click="isSidebarCollapsed = !isSidebarCollapsed"
+                    :class="[
+                        'absolute top-1/2 right-[-8px] z-30 p-1 rounded-full transition-all transform hover:scale-110',
+                        backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700 shadow-lg text-white' : 'bg-white border-gray-200 shadow-md text-gray-800'
+                    ]"
+                    :style="{ border: '1px solid', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)', transform: 'translateY(-50%)' }"
+                    aria-label="切换侧边栏"
+                >
+                    <svg 
+                        xmlns="http://www.w3.org/2000/svg" 
+                        class="h-3 w-3 transition-transform duration-300" 
+                        :class="isSidebarCollapsed ? 'rotate-0' : 'rotate-180'"
+                        fill="none" 
+                        viewBox="0 0 24 24" 
+                        stroke="currentColor"
+                    >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                    </svg>
+                </button>
+                
+                <!-- 品牌标识 -->
+                <div class="mb-8 pt-4 flex items-center justify-center">
+                    <h1 
+                        class="text-xl font-bold tracking-wider" 
+                        :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }"
+                    >
+                        每日一文
+                    </h1>
+                    <p 
+                        class="text-xs opacity-60 mt-1"
+                    >
+                        {{ currentDate }}
+                    </p>
+                </div>
+                
+                <!-- 导航菜单 -->
+                <nav class="flex-1">
+                    <ul class="space-y-2">
+                        <li>
+                            <button 
+                                @click="activeTab = 'daily'; isSidebarCollapsed = true"
+                                :class="[
+                                    'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                    activeTab === 'daily' 
+                                        ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800') 
+                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                ]"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>每日一文</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button 
+                                @click="selectFolder"
+                                :class="[
+                                    'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                    activeTab === 'downloads' 
+                                        ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800') 
+                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                ]"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                                <span>本地文章</span>
+                                <span 
+                                    :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-blue-200']"
+                                >
+                                    {{ localArticles.length }}
+                                </span>
+                             </button>
+                         </li>
+                         <li>
+                             <button
+                                 @click="activeTab = 'favorites'; isSidebarCollapsed = true"
+                                 :class="[
+                                     'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                     activeTab === 'favorites'
+                                         ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
+                                         : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                 ]"
+                             >
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" :fill="activeTab === 'favorites' ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                 </svg>
+                                 <span>收藏文章</span>
+                                 <span
+                                     :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-blue-200']"
+                                 >
+                                     {{ favoriteArticles.length }}
+                                 </span>
+                             </button>
+                         </li>
+                     </ul>
+                 </nav>
+                
+                <!-- 底部信息 -->
+                <div class="mt-8 pb-4 text-center">
+                    <p class="text-[10px] opacity-40">Content provided by qhsou.com</p>
+                </div>
+            </div>
+            <!-- 折叠状态下的展开按钮 -->
+            <button 
+                v-if="isSidebarCollapsed"
+                @click="isSidebarCollapsed = !isSidebarCollapsed"
+                :class="[
+                    'absolute top-1/2 left-0 z-30 p-1 rounded-full transition-all transform hover:scale-110',
+                    backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700 shadow-lg text-white' : 'bg-white border-gray-200 shadow-md text-gray-800'
+                ]"
+                :style="{ border: '1px solid', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)', transform: 'translateY(-50%)' }"
+                aria-label="展开侧边栏"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-3 w-3 rotate-180"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                >
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12l-7 7 7 7" />
+                </svg>
+            </button>
+        </aside>
+        
+        <!-- 右侧内容区域 -->
+        <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'ml-64']">
+            <!-- 顶部操作栏 -->
+            <header :class="['p-4 md:p-6 flex justify-between items-center border-b transition-colors duration-300', backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white']">
+                <h2 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">
+                    {{ activeTab === 'daily' ? '每日一文' : (activeTab === 'favorites' ? '收藏文章' : '本地文章') }}
+                </h2>
+                <div class="flex items-center gap-2">
+                    <!-- 设置按钮 -->
+                    <button 
+                        @click="showSettings = !showSettings"
+                        :class="['p-2 rounded-full transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100']"
+                        aria-label="设置"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                    </button>
+                    
+                    <!-- 换一篇按钮 (仅在每日一文页面显示) -->
+                    <button 
+                        v-if="activeTab === 'daily'"
+                        @click="getArticle" 
+                        :disabled="loading"
+                        :class="[
+                            'group flex items-center gap-2 px-4 py-2 rounded-full shadow-sm transition-all active:scale-95 disabled:opacity-50 border',
+                            backgroundColor === 'dark' 
+                                ? 'bg-gray-800 border-gray-700 hover:bg-gray-700' 
+                                : 'bg-white border-gray-200 hover:shadow-md'
+                        ]"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 group-hover:rotate-180 transition-transform duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                         <span class="text-sm font-medium">换一篇</span>
+                     </button>
+
+                     <!-- 收藏按钮 -->
+                     <button
+                         v-if="article"
+                         @click="toggleFavorite"
+                         :class="[
+                             'p-2 rounded-full transition-colors',
+                             isFavorited ? 'text-red-500' : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                         ]"
+                         :title="isFavorited ? '取消收藏' : '收藏文章'"
+                     >
+                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" :fill="isFavorited ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                         </svg>
+                     </button>
+                 </div>
+            </header>
+
+            <!-- 主内容区 -->
+            <main class="flex-1 overflow-hidden relative">
+                <!-- 每日一文内容 -->
+                <div v-if="activeTab === 'daily'" class="h-full overflow-hidden relative">
+                    <!-- 加载状态 -->
+                    <div v-if="loading" :class="['absolute inset-0 flex flex-col justify-center items-center rounded-2xl shadow-sm z-10 transition-colors duration-300']" :style="{ backgroundColor: bgColors[backgroundColor].bg }">
+                        <div class="animate-spin rounded-full h-10 w-10 border-b-2" :style="{ borderColor: bgColors[backgroundColor].text }" class="mb-4"></div>
+                        <p :style="{ color: bgColors[backgroundColor].text }" class="text-sm tracking-widest opacity-70">正在寻找好文章...</p>
+                    </div>
+
+                    <!-- 骨架屏 -->
+                    <div v-else-if="!article" :class="['absolute inset-0 rounded-2xl shadow-sm z-10 p-8 transition-colors duration-300']" :style="{ backgroundColor: bgColors[backgroundColor].bg }">
+                        <div class="max-w-prose mx-auto space-y-8">
+                            <div class="animate-pulse space-y-4">
+                                <div class="h-8 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                                <div class="h-4 bg-gray-200 rounded w-1/4 mx-auto"></div>
+                            </div>
+                            <div class="animate-pulse space-y-4">
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                            </div>
+                            <div class="animate-pulse space-y-4">
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                                <div class="h-4 bg-gray-200 rounded"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 错误状态 -->
+                    <div v-if="error" :class="['absolute inset-0 flex flex-col justify-center items-center rounded-2xl shadow-sm z-10 p-8 text-center transition-colors duration-300']" :style="{ backgroundColor: bgColors[backgroundColor].bg }">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <p :style="{ color: bgColors[backgroundColor].text }" class="mb-4">获取文章失败，可能是由于跨域限制或网络问题。</p>
+                        <button @click="getArticle" class="px-6 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700 transition">重试</button>
+                    </div>
+
+                    <!-- 文章卡片 -->
+                    <article v-if="article" @scroll="handleArticleScroll" :class="['h-full w-full overflow-y-auto p-6 md:p-10 transition-opacity duration-500 opacity-100 transition-colors duration-300']" :style="{ backgroundColor: bgColors[backgroundColor].bg, color: bgColors[backgroundColor].text }">
+                        <div class="max-w-3xl mx-auto">
+                            <!-- 标题 -->
+                            <h2 class="text-2xl md:text-3xl font-bold text-center mb-4 leading-tight">
+                                {{ article.title }}
+                            </h2>
+                            
+                            <!-- 作者和阅读信息 -->
+                            <div class="text-center mb-10">
+                                <div class="flex items-center justify-center gap-4">
+                                    <span class="inline-block h-px w-8" :style="{ backgroundColor: bgColors[backgroundColor].text }" class="align-middle opacity-30"></span>
+                                    <span class="text-sm mx-2 tracking-widest opacity-70">{{ article.author || '佚名' }}</span>
+                                    <span class="inline-block h-px w-8" :style="{ backgroundColor: bgColors[backgroundColor].text }" class="align-middle opacity-30"></span>
+                                    <span class="inline-block h-px w-8" :style="{ backgroundColor: bgColors[backgroundColor].text }" class="align-middle opacity-30"></span>
+                                    <span class="text-xs flex items-center gap-1 opacity-70">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        {{ readingTime }} 分钟阅读
+                                    </span>
+                                    <span class="inline-block h-px w-8" :style="{ backgroundColor: bgColors[backgroundColor].text }" class="align-middle opacity-30"></span>
+                                </div>
+                            </div>
+
+                            <!-- 正文 -->
+                            <div :class="['prose prose-lg text-justify prose-p:indent-8 prose-p:leading-loose mx-auto', bgColors[backgroundColor].prose]" v-html="article.content" :style="{ fontSize: fontSize + 'px' }">
+                            </div>
+                            
+                            <!-- 底部结束符 -->
+                            <div class="mt-16 text-center">
+                                <span :style="{ color: bgColors[backgroundColor].text }" class="opacity-40 text-xl">❦</span>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+
+                <!-- 本地文章列表 -->
+                <div v-else-if="activeTab === 'downloads'" class="h-full overflow-y-auto p-6">
+                    <div class="max-w-3xl mx-auto">
+                        <div v-if="localArticles.length === 0" class="text-center py-12">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                            </svg>
+                            <p class="text-lg opacity-60">暂无本地文章</p>
+                            <p class="text-sm opacity-40 mt-2">点击左侧菜单中的"本地文章"按钮选择文件夹</p>
+                        </div>
+                        <div v-else class="space-y-4">
+                            <div 
+                                v-for="(item, index) in localArticles" 
+                                :key="item.id || index"
+                                @click="viewLocalArticle(item)"
+                                :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50 border border-gray-200']"
+                            >
+                                <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-xs opacity-40">{{ item.fileName }}</span>
+                                    <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                 </div>
+
+                 <!-- 收藏文章列表 -->
+                 <div v-else-if="activeTab === 'favorites'" class="h-full overflow-y-auto p-6">
+                     <div class="max-w-3xl mx-auto">
+                         <div v-if="favoriteArticles.length === 0" class="text-center py-12">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                             </svg>
+                             <p class="text-lg opacity-60">暂无收藏文章</p>
+                             <p class="text-sm opacity-40 mt-2">阅读文章时点击心形图标收藏</p>
+                         </div>
+                         <div v-else class="space-y-4">
+                             <div
+                                 v-for="(item, index) in favoriteArticles"
+                                 :key="item.id || index"
+                                 @click="viewLocalArticle(item)"
+                                 :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50 border border-gray-200']"
+                             >
+                                 <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                 <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                 <div class="flex justify-between items-center">
+                                     <span class="text-xs opacity-40">{{ new Date(item.dateAdded).toLocaleDateString() }}</span>
+                                     <button @click.stop="removeFavorite(item.id)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="移除收藏">
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                         </svg>
+                                     </button>
+                                 </div>
+                             </div>
+                         </div>
+                     </div>
+                 </div>
+
+                 <!-- 设置面板遮罩层 -->
+                <div v-if="showSettings" class="fixed inset-0 z-20 bg-black bg-opacity-10" @click="showSettings = false"></div>
+                
+                <!-- 设置面板 -->
+                <div v-if="showSettings" :class="['absolute top-4 right-4 z-30 rounded-lg shadow-lg border p-4 min-w-[200px] transition-colors duration-300', backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-100']" @click.stop>
+                    <div class="flex justify-between items-center mb-3">
+                        <h3 :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-sm font-medium">阅读设置</h3>
+                        <button @click="showSettings = false" :style="{ color: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }" class="hover:text-gray-400 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <!-- 字体大小调整 -->
+                    <div class="mb-3">
+                        <label :style="{ color: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }" class="block text-xs mb-2">字体大小</label>
+                        <div class="flex items-center justify-between gap-3">
+                            <button 
+                                @click="adjustFontSize(-1)" 
+                                :class="['p-2 rounded-full transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100']"
+                                aria-label="减小字体"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </button>
+                            <span :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-sm font-medium w-12 text-center">{{ fontSize }}px</span>
+                            <button 
+                                @click="adjustFontSize(1)" 
+                                :class="['p-2 rounded-full transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100']"
+                                aria-label="增大字体"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+                                </svg>
+                            </button>
+                        </div>
+                        <!-- 字体大小滑块 -->
+                        <input 
+                            type="range" 
+                            min="14" 
+                            max="28" 
+                            v-model.number="fontSize" 
+                            :class="['w-full mt-3 h-1 rounded-lg appearance-none cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-700 accent-white' : 'bg-gray-200 accent-gray-600']"
+                        >
+                    </div>
+                    
+                    <!-- 背景色选择 -->
+                    <div class="mb-3">
+                        <label :style="{ color: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }" class="block text-xs mb-2">阅读背景</label>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button 
+                                @click="backgroundColor = 'paper'"
+                                :class="[
+                                    'p-2 rounded-lg flex flex-col items-center gap-1 transition-all',
+                                    backgroundColor === 'paper' 
+                                        ? (backgroundColor === 'dark' ? 'ring-2 ring-white bg-gray-800' : 'ring-2 ring-gray-500 bg-gray-100') 
+                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                ]"
+                                aria-label="纸张色"
+                            >
+                                <div class="w-6 h-6 rounded-full bg-[#fdfbf7] border border-gray-300"></div>
+                                <span :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-xs">纸张色</span>
+                            </button>
+                            <button 
+                                @click="backgroundColor = 'white'"
+                                :class="[
+                                    'p-2 rounded-lg flex flex-col items-center gap-1 transition-all',
+                                    backgroundColor === 'white' 
+                                        ? (backgroundColor === 'dark' ? 'ring-2 ring-white bg-gray-800' : 'ring-2 ring-gray-500 bg-gray-100') 
+                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                ]"
+                                aria-label="纯白色"
+                            >
+                                <div class="w-6 h-6 rounded-full bg-white border border-gray-300"></div>
+                                <span :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-xs">纯白色</span>
+                            </button>
+                            <button 
+                                @click="backgroundColor = 'dark'"
+                                :class="[
+                                    'p-2 rounded-lg flex flex-col items-center gap-1 transition-all',
+                                    backgroundColor === 'dark' 
+                                        ? (backgroundColor === 'dark' ? 'ring-2 ring-white bg-gray-800' : 'ring-2 ring-gray-500 bg-gray-100') 
+                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                ]"
+                                aria-label="深色模式"
+                            >
+                                <div class="w-6 h-6 rounded-full bg-[#1a1a1a] border border-gray-300"></div>
+                                <span :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-xs">深色模式</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, onMounted, computed, watch } = Vue;
+
+        createApp({
+            setup() {
+                const article = ref(null);
+                const loading = ref(true);
+                const error = ref(null);
+                const currentDate = ref('');
+                const fontSize = ref(18);
+                const showSettings = ref(false);
+                const activeTab = ref('daily');
+                // 背景色选项：paper（默认纸张色）, white（纯白）, dark（黑色）
+                const backgroundColor = ref('paper');
+                // 本地文章列表
+                const localArticles = ref([]);
+                // 保存当前查看的每日一文，避免切换后重新请求
+                const currentDailyArticle = ref(null);
+                // 侧边栏展开/折叠状态
+                const isSidebarCollapsed = ref(false);
+                const favoriteArticles = ref([]);
+
+                // 背景色配置
+                const bgColors = {
+                    paper: { bg: '#fdfbf7', text: '#374151', prose: 'prose-slate' },
+                    white: { bg: '#ffffff', text: '#374151', prose: 'prose-slate' },
+                    dark: { bg: '#1a1a1a', text: '#e5e7eb', prose: 'prose-invert' }
+                };
+
+                // 初始化数据
+                const initData = () => {
+                    // 初始化本地文章列表
+                    localArticles.value = [];
+                };
+
+                // 获取当前日期
+                const formatDate = (date) => {
+                    if (!date) {
+                        const currentDate = new Date();
+                        const options = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' };
+                        return currentDate.toLocaleDateString('zh-CN', options);
+                    }
+                    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+                    return new Date(date).toLocaleDateString('zh-CN', options);
+                };
+
+                // 计算阅读时长（假设每分钟阅读300字）
+                const readingTime = computed(() => {
+                    if (!article.value) return 0;
+                    // 移除HTML标签，计算纯文本字数
+                    const text = article.value.content.replace(/<[^>]*>/g, '');
+                    const wordCount = text.length;
+                    return Math.ceil(wordCount / 300);
+                });
+
+                // 获取文章
+                const getArticle = async () => {
+                    loading.value = true;
+                    error.value = null;
+                    
+                    try {
+                        // 1. 尝试直接请求
+                        // 注意：如果遇到跨域(CORS)错误，请参考下面的代理方案
+                        const apiUrl = 'https://api.qhsou.com/api/one.php';
+                        
+                        // 2. 如果你在本地直接打开HTML遇到跨域错误，可以使用 cors-anywhere 等代理
+                        // const apiUrl = 'https://cors-anywhere.herokuapp.com/https://api.qhsou.com/api/one.php'; 
+                        
+                        const response = await fetch(apiUrl);
+                        
+                        if (!response.ok) {
+                            throw new Error('网络请求失败');
+                        }
+
+                        const data = await response.json();
+
+                        // 简单的根据返回结构处理数据
+                        // 假设API返回结构包含 title, author, content
+                        // 有些API返回的 content 带有 HTML 标签，有些没有，这里做个简单清洗
+                        const newArticle = {
+                            title: data.title || data.c_title || '无标题',
+                            author: data.author || data.c_author || '未知',
+                            content: data.content || data.c_content || '<p>暂无内容</p>'
+                        };
+                        
+                        article.value = newArticle;
+                        currentDailyArticle.value = newArticle;
+
+                    } catch (err) {
+                        console.error(err);
+                        error.value = '获取文章失败，可能是由于跨域限制或网络问题。';
+                    } finally {
+                        loading.value = false;
+                    }
+                };
+
+                // 调整字体大小
+                const adjustFontSize = (delta) => {
+                    fontSize.value = Math.max(14, Math.min(28, fontSize.value + delta));
+                };
+
+                // 选择文件夹
+                const selectFolder = () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.webkitdirectory = true;
+                    input.multiple = true;
+                    input.accept = '.txt,.md,.text';
+
+                    input.onchange = (e) => {
+                        const files = e.target.files;
+                        console.log('Selected files:', files.length);
+                        if (files.length === 0) {
+                            alert('未选择任何文件');
+                            return;
+                        }
+                        readLocalFiles(files);
+                        activeTab.value = 'downloads';
+                    };
+
+                    input.click();
+                };
+
+                // 读取本地文件
+                const readLocalFiles = (files) => {
+                    localArticles.value = [];
+                    let loadedCount = 0;
+                    const totalFiles = files.length;
+
+                    Array.from(files).forEach(file => {
+                        const fileName = file.name.toLowerCase();
+                        if (fileName.endsWith('.txt') || fileName.endsWith('.md') || file.type.includes('text')) {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                const content = e.target.result;
+                                const lines = content.split('\n');
+                                let title = file.name.replace(/\.(txt|md)$/i, '');
+                                let author = '未知作者';
+                                let articleContent = content;
+
+                                if (lines.length > 0 && lines[0].trim()) {
+                                    title = lines[0].trim();
+                                }
+                                if (lines.length > 1) {
+                                    const authorLine = lines[1].trim();
+                                    if (authorLine.startsWith('作者：') || authorLine.startsWith('Author:') || authorLine.startsWith('作者:') || authorLine.startsWith('Author:')) {
+                                        author = authorLine.replace(/作者：|作者:|Author:|Author:/, '').trim();
+                                        articleContent = lines.slice(2).join('\n');
+                                    }
+                                }
+
+                                const htmlContent = articleContent
+                                    .split('\n\n')
+                                    .filter(paragraph => paragraph.trim())
+                                    .map(paragraph => `<p>${paragraph}</p>`)
+                                    .join('');
+
+                                localArticles.value.push({
+                                    id: Date.now() + Math.random(),
+                                    title,
+                                    author,
+                                    content: htmlContent,
+                                    fileName: file.name,
+                                    fileSize: file.size,
+                                    lastModified: file.lastModified
+                                });
+
+                                loadedCount++;
+                                console.log(`Loaded ${loadedCount}/${totalFiles}: ${title}`);
+                            };
+                            reader.onerror = (e) => {
+                                console.error('Error reading file:', file.name, e);
+                                loadedCount++;
+                            };
+                            reader.readAsText(file, 'utf-8');
+                        } else {
+                            loadedCount++;
+                        }
+                    });
+                };
+
+                // 查看本地文章
+                const viewLocalArticle = (localArticle) => {
+                    article.value = localArticle;
+                    activeTab.value = 'daily';
+                    isSidebarCollapsed.value = true;
+                };
+
+                // 处理文章滚动事件
+                const handleArticleScroll = (event) => {
+                    // 当文章滚动时，自动关闭侧边栏
+                    isSidebarCollapsed.value = true;
+                };
+
+                // 监听背景色变化，更新body样式
+                watch(backgroundColor, (newColor) => {
+                    const body = document.body;
+                    if (newColor === 'dark') {
+                        body.classList.add('bg-black');
+                        body.classList.remove('bg-slate-50');
+                        body.style.color = '#e5e7eb';
+                    } else {
+                        body.classList.remove('bg-black');
+                        body.classList.add('bg-slate-50');
+                        body.style.color = '#374151';
+                    }
+                }, { immediate: true });
+
+                // 监听标签切换
+                watch(activeTab, (newTab) => {
+                    if (newTab === 'daily') {
+                        // 如果有保存的当前文章，直接显示，否则获取新文章
+                        if (currentDailyArticle.value) {
+                            article.value = currentDailyArticle.value;
+                            loading.value = false;
+                        } else {
+                            getArticle();
+                        }
+                    }
+                 });
+
+                // 切换收藏状态
+                const toggleFavorite = () => {
+                    if (!article.value) return;
+                    const isFav = favoriteArticles.value.some(fav => fav.id === article.value.id);
+                    if (isFav) {
+                        favoriteArticles.value = favoriteArticles.value.filter(fav => fav.id !== article.value.id);
+                    } else {
+                        favoriteArticles.value.push({ ...article.value, dateAdded: new Date().toISOString() });
+                    }
+                    localStorage.setItem('favoriteArticles', JSON.stringify(favoriteArticles.value));
+                };
+
+                // 是否已收藏
+                const isFavorited = computed(() => article.value && favoriteArticles.value.some(fav => fav.id === article.value.id));
+
+                // 移除收藏
+                const removeFavorite = (id) => {
+                    favoriteArticles.value = favoriteArticles.value.filter(fav => fav.id !== id);
+                    localStorage.setItem('favoriteArticles', JSON.stringify(favoriteArticles.value));
+                };
+
+                onMounted(() => {
+                    initData();
+                    getArticle();
+                    favoriteArticles.value = JSON.parse(localStorage.getItem('favoriteArticles') || '[]');
+                });
+
+                return {
+                    article,
+                    loading,
+                    error,
+                    currentDate: computed(() => formatDate()),
+                    fontSize,
+                    showSettings,
+                    activeTab,
+                    backgroundColor,
+                     localArticles,
+                     favoriteArticles,
+                     toggleFavorite,
+                     isFavorited,
+                     removeFavorite,
+                     bgColors,
+                    readingTime,
+                    formatDate,
+                    getArticle,
+                    adjustFontSize,
+                    viewLocalArticle,
+                    selectFolder,
+                    isSidebarCollapsed,
+                    handleArticleScroll
+                };
+            }
+        }).mount('#app');
+        </script>
+</body>
+</html>
