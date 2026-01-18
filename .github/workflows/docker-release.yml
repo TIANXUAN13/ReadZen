@@ -12,9 +12,15 @@ on:
         required: false
         default: 'admin123'
 
+permissions:
+  contents: write
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout code
@@ -57,12 +63,18 @@ jobs:
           
           # Create checksum
           sha256sum daily-article-reader.tar > daily-article-reader.tar.sha256
+          
+          # List files
+          ls -la
 
       - name: Upload Release Asset
         if: ${{ github.event.inputs.tag != 'latest' }}
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
+          name: Release ${{ github.event.inputs.tag }}
+          draft: false
+          prerelease: false
           files: |
             daily-article-reader.tar
             daily-article-reader.tar.sha256
