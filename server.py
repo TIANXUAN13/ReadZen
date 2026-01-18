@@ -126,7 +126,7 @@ def admin_delete_user(user_id):
     delete_user(user_id)
     return jsonify({'deleted': user_id})
 
-@app.before_first_request
+
 def create_admin_user():
     """启动时检查并创建 admin 用户"""
     admin_user = get_user_by_username('admin')
@@ -135,11 +135,18 @@ def create_admin_user():
         if admin_password:
             try:
                 create_user('admin', admin_password)
-                print(f"[INFO] Admin user created with default password: {admin_password}")
+                print(f"[INFO] Admin user created with password: {admin_password}")
             except Exception as e:
                 print(f"[WARNING] Failed to create admin user: {e}")
+
+
+# 在应用启动时创建 admin 用户
+with app.app_context():
+    create_admin_user()
+
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     host = os.environ.get('HOST', '0.0.0.0')
     app.run(host=host, port=port, debug=True)
+
