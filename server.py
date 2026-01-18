@@ -1,7 +1,9 @@
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import os
+import sqlite3
 import requests
+from werkzeug.security import generate_password_hash, check_password_hash
 from database import init_db, get_user_by_username, create_user, verify_user, add_favorite, get_favorites, remove_favorite, get_all_users, get_user_by_id, delete_user
 
 app = Flask(__name__)
@@ -54,6 +56,27 @@ def me():
 @app.route('/api/auth/logout', methods=['POST'])
 def logout():
     session.clear()
+    return jsonify({'ok': True})
+
+@app.route('/api/auth/change-password', methods=['POST'])
+def change_password():
+    if 'user_id' not in session:
+        return jsonify({'error': 'unauthorized'}), 401
+    data = request.json or {}
+    old_password = data.get('old_password')
+    new_password = data.get('new_password')
+    if not old_password or not new_password:
+        return jsonify({'error': 'old_password and new_password are required'}), 400
+    user_id = session['user_id']
+    user = get_user_by_username(session['username'])
+    if not user or not check_password_hash(user['password'], old_password):
+        return jsonify({'error': 'invalid old password'}), 401
+    from werkzeug.security import generate_password_hash
+    hashed = generate_password_hash(new_password)
+    conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), 'data.db'))
+    conn.execute('UPDATE users SET password = ? WHERE id = ?', (hashed, user_id))
+    conn.commit()
+    conn.close()
     return jsonify({'ok': True})
 
 # Favorites CRUD (SQLite-backed)
@@ -129,6 +152,8 @@ def admin_delete_user(user_id):
 
 def create_admin_user():
     """启动时检查并创建 admin 用户"""
+    # 确保数据库表已创建
+    init_db()
     admin_user = get_user_by_username('admin')
     if not admin_user:
         admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')

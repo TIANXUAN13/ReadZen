@@ -251,6 +251,13 @@
                             {{ user.username }}
                         </span>
                         <button 
+                            @click="openChangePassword"
+                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors mr-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700']"
+                            title="修改密码"
+                        >
+                            修改密码
+                        </button>
+                        <button 
                             @click="doLogout"
                             :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700']"
                         >
@@ -578,17 +585,25 @@
                                                   <span v-if="u.id === user.id" class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">自己</span>
                                               </td>
                                               <td class="px-4 py-3">{{ new Date(u.created_at).toLocaleString() }}</td>
-                                              <td class="px-4 py-3 text-right">
-                                                  <button 
-                                                      v-if="u.id !== user.id"
-                                                      @click="deleteUser(u.id)"
-                                                      :class="['px-3 py-1 rounded text-sm font-medium text-red-500 hover:bg-red-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
-                                                      title="删除用户"
-                                                  >
-                                                      删除
-                                                  </button>
-                                                  <span v-else class="text-gray-400 text-sm">-</span>
-                                              </td>
+                                               <td class="px-4 py-3 text-right">
+                                                    <button 
+                                                        v-if="u.id !== user.id"
+                                                        @click="deleteUser(u.id)"
+                                                        :class="['px-3 py-1 rounded text-sm font-medium text-red-500 hover:bg-red-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
+                                                        title="删除用户"
+                                                    >
+                                                        删除
+                                                    </button>
+                                                    <span v-else class="text-gray-400 text-sm">-</span>
+                                                    <button 
+                                                        v-if="u.id === user.id"
+                                                        @click="openChangePassword"
+                                                        :class="['ml-2 px-3 py-1 rounded text-sm font-medium text-blue-500 hover:bg-blue-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
+                                                        title="修改密码"
+                                                    >
+                                                        修改密码
+                                                    </button>
+                                                </td>
                                           </tr>
                                       </tbody>
                                   </table>
@@ -692,6 +707,54 @@
                     </div>
                 </div>
             </main>
+
+            <!-- 修改密码弹窗 -->
+            <div v-if="showChangePassword" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showChangePassword = false">
+                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                            修改密码
+                        </h3>
+                        <button @click="showChangePassword = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <input 
+                        v-model="changePasswordForm.old_password"
+                        type="password"
+                        placeholder="旧密码"
+                        :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+                    <input 
+                        v-model="changePasswordForm.new_password"
+                        type="password"
+                        placeholder="新密码"
+                        :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+                    <input 
+                        v-model="changePasswordForm.confirm_password"
+                        type="password"
+                        placeholder="确认新密码"
+                        @keyup.enter="doChangePassword"
+                        :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+                    
+                    <div v-if="changePasswordError" :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-red-400' : 'text-red-500']">
+                        {{ changePasswordError }}
+                    </div>
+                    
+                    <button 
+                        @click="doChangePassword"
+                        :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                        :disabled="changePasswordLoading"
+                    >
+                        {{ changePasswordLoading ? '修改中...' : '确认修改' }}
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1139,6 +1202,70 @@
                     }
                 };
 
+                // 修改密码相关
+                const showChangePassword = ref(false);
+                const changePasswordForm = reactive({
+                    old_password: '',
+                    new_password: '',
+                    confirm_password: ''
+                });
+                const changePasswordError = ref('');
+                const changePasswordLoading = ref(false);
+
+                const openChangePassword = () => {
+                    changePasswordForm.old_password = '';
+                    changePasswordForm.new_password = '';
+                    changePasswordForm.confirm_password = '';
+                    changePasswordError.value = '';
+                    showChangePassword.value = true;
+                };
+
+                const doChangePassword = async () => {
+                    changePasswordError.value = '';
+                    
+                    if (!changePasswordForm.old_password || !changePasswordForm.new_password) {
+                        changePasswordError.value = '请填写完整信息';
+                        return;
+                    }
+                    
+                    if (changePasswordForm.new_password !== changePasswordForm.confirm_password) {
+                        changePasswordError.value = '两次输入的密码不一致';
+                        return;
+                    }
+                    
+                    if (changePasswordForm.new_password.length < 6) {
+                        changePasswordError.value = '新密码长度不能少于6位';
+                        return;
+                    }
+                    
+                    changePasswordLoading.value = true;
+                    
+                    try {
+                        const res = await fetch('/api/auth/change-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                old_password: changePasswordForm.old_password,
+                                new_password: changePasswordForm.new_password
+                            }),
+                            credentials: 'include'
+                        });
+                        
+                        if (res.ok) {
+                            showChangePassword.value = false;
+                            alert('密码修改成功');
+                        } else {
+                            const err = await res.json();
+                            changePasswordError.value = err.error || '修改失败';
+                        }
+                    } catch (e) {
+                        console.error('修改密码失败:', e);
+                        changePasswordError.value = '修改失败，请稍后重试';
+                    } finally {
+                        changePasswordLoading.value = false;
+                    }
+                };
+
                 // 当切换到用户管理页面时加载用户列表
                 watch(() => activeTab.value, (newTab) => {
                     if (newTab === 'admin') {
@@ -1189,19 +1316,25 @@
                      regForm,
                      openAuth,
                      doLogin,
-                     doRegister,
-                     doLogout,
-                     allUsers,
-                     loadingUsers,
-                     loadAllUsers,
-                     deleteUser,
-                     formatDate,
-                     getArticle,
-                     adjustFontSize,
-                     viewLocalArticle,
-                     selectFolder,
-                     isSidebarCollapsed,
-                     handleArticleScroll
+                      doRegister,
+                      doLogout,
+                      allUsers,
+                      loadingUsers,
+                      loadAllUsers,
+                      deleteUser,
+                      showChangePassword,
+                      changePasswordForm,
+                      changePasswordError,
+                      changePasswordLoading,
+                      openChangePassword,
+                      doChangePassword,
+                      formatDate,
+                      getArticle,
+                      adjustFontSize,
+                      viewLocalArticle,
+                      selectFolder,
+                      isSidebarCollapsed,
+                      handleArticleScroll
                 };
             }
         }).mount('#app');
