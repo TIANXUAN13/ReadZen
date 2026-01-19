@@ -3,7 +3,7 @@ from flask_cors import CORS
 import os
 import sqlite3
 from functools import wraps
-from flask import Flask, request, jsonify, session, send_from_directory, CORS
+from flask import Flask, request, jsonify, session, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
