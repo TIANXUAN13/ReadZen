@@ -67,9 +67,6 @@ jobs:
           if [ "$TAG" == "latest" ]; then
             echo "is_latest=true" >> $GITHUB_OUTPUT
           fi
-          
-          # 获取 metadata-action 生成的第一个 tag（用户选择的）
-          echo "docker_tag=$(echo '${{ steps.meta.outputs.tags }}' | tr ',' '\n' | head -1)" >> $GITHUB_OUTPUT
 
       - name: Create Release Asset
         if: steps.tag-info.outputs.is_latest != 'true'
@@ -77,20 +74,35 @@ jobs:
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader"
           TAG="${{ steps.tag-info.outputs.tag }}"
           
-          echo "Saving Docker image: ${IMAGE_NAME}:${TAG}"
+          echo "=== Debug Info ==="
+          echo "Image name: ${IMAGE_NAME}"
+          echo "Tag: ${TAG}"
           
-          # 列出所有本地镜像确认存在
-          echo "Local images:"
-          docker images | grep daily-article-reader || true
+          echo ""
+          echo "=== All local Docker images ==="
+          docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.Size}}" | head -20
           
-          # Save Docker image as tar file - 使用完整镜像名称
-          docker save ${IMAGE_NAME}:${TAG} -o daily-article-reader.tar
+          # Find the first available image
+          IMAGE_ID=$(docker images --format "{{.ID}}" | head -1)
+          if [ -n "$IMAGE_ID" ]; then
+            echo ""
+            echo "=== Found image ID ==="
+            echo "Image ID: ${IMAGE_ID}"
+            docker save ${IMAGE_ID} -o daily-article-reader.tar
+          else
+            echo ""
+            echo "=== No images found, trying by name ==="
+            docker save ${IMAGE_NAME}:${TAG} -o daily-article-reader.tar 2>&1 || echo "Failed to save image"
+          fi
           
-          # Create checksum
-          sha256sum daily-article-reader.tar > daily-article-reader.tar.sha256
-          
-          # List files
-          ls -la
+          if [ -f daily-article-reader.tar ]; then
+            echo ""
+            echo "=== Creating checksum ==="
+            sha256sum daily-article-reader.tar > daily-article-reader.tar.sha256
+            ls -la daily-article-reader.tar
+          else
+            echo "ERROR: daily-article-reader.tar was not created!"
+          fi
 
       - name: Upload Release Asset
         if: steps.tag-info.outputs.is_latest != 'true'
