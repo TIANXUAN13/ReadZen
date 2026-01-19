@@ -63,39 +63,17 @@
         <aside :class="[
             'fixed left-0 top-0 bottom-0 z-50 border-r transition-transform duration-300 ease-in-out overflow-hidden',
             isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0',
-            backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'
+            borderClass + ' ' + bgClass
         ]" style="width: 256px;">
             <div class="h-full flex flex-col p-4">
                 <!-- 关闭按钮 (移动端显示) -->
                 <button 
                     @click="closeSidebar"
-                    :class="['absolute top-2 right-2 p-1 rounded-full md:hidden', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500']"
+                    :class="['absolute top-2 right-2 p-1 rounded-full md:hidden', hoverBgClass + ' text-gray-500']"
                     aria-label="关闭菜单"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-                
-                <!-- 折叠/展开按钮 (桌面端显示) -->
-                <button 
-                    @click="toggleSidebar"
-                    :class="[
-                        'absolute top-1/2 right-[-16px] z-30 p-2 rounded-full transition-all transform hover:scale-110 hidden md:block',
-                        backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700 shadow-lg text-white' : 'bg-white border-gray-200 shadow-md text-gray-800'
-                    ]"
-                    :style="{ border: '1px solid', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)', transform: 'translateY(-50%)' }"
-                    aria-label="切换侧边栏"
-                >
-                    <svg 
-                        xmlns="http://www.w3.org/2000/svg" 
-                        class="h-4 w-4 transition-transform duration-300" 
-                        :class="isSidebarCollapsed ? 'rotate-0' : 'rotate-180'"
-                        fill="none" 
-                        viewBox="0 0 24 24" 
-                        stroke="currentColor"
-                    >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
                 
@@ -122,9 +100,7 @@
                                 @click="activeTab = 'daily'; isSidebarCollapsed = true"
                                 :class="[
                                     'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                    activeTab === 'daily' 
-                                        ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800') 
-                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                    activeTab === 'daily' ? navActiveClass : hoverBgClass
                                 ]"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -138,9 +114,7 @@
                                 @click="selectFolder"
                                 :class="[
                                     'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                    activeTab === 'downloads' 
-                                        ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800') 
-                                        : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                    activeTab === 'downloads' ? navActiveClass : hoverBgClass
                                 ]"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -148,33 +122,31 @@
                                 </svg>
                                 <span>本地文章</span>
                                 <span 
-                                    :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-blue-200']"
+                                    :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', badgeBgClass]"
                                 >
                                     {{ localArticles.length }}
                                 </span>
                              </button>
-                         </li>
-                         <li>
-                             <button
-                                 @click="activeTab = 'favorites'; isSidebarCollapsed = true"
-                                 :class="[
-                                     'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                     activeTab === 'favorites'
-                                         ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
-                                         : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
-                                 ]"
-                             >
-                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" :fill="activeTab === 'favorites' ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
-                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                 </svg>
-                                 <span>收藏文章</span>
-                                 <span
-                                     :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-blue-200']"
-                                 >
-                                     {{ favoriteArticles.length }}
-                                 </span>
-                              </button>
                           </li>
+                          <li>
+                              <button
+                                  @click="activeTab = 'favorites'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                      activeTab === 'favorites' ? navActiveClass : hoverBgClass
+                                  ]"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" :fill="activeTab === 'favorites' ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                  </svg>
+                                  <span>收藏文章</span>
+                                  <span
+                                      :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', badgeBgClass]"
+                                  >
+                                      {{ favoriteArticles.length }}
+                                  </span>
+                               </button>
+                           </li>
                           <!-- 用户管理入口 (仅 admin 可见) -->
                           <li v-if="user && user.username === 'admin'">
                               <button
@@ -200,40 +172,19 @@
                     <p class="text-[10px] opacity-40">Content provided by qhsou.com</p>
                 </div>
             </div>
-            <!-- 折叠状态下的展开按钮 -->
-            <button 
-                v-if="isSidebarCollapsed"
-                @click="isSidebarCollapsed = !isSidebarCollapsed"
-                :class="[
-                    'absolute top-1/2 left-0 z-30 p-1 rounded-full transition-all transform hover:scale-110',
-                    backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700 shadow-lg text-white' : 'bg-white border-gray-200 shadow-md text-gray-800'
-                ]"
-                :style="{ border: '1px solid', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)', transform: 'translateY(-50%)' }"
-                aria-label="展开侧边栏"
-            >
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    class="h-3 w-3 rotate-180"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                >
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12l-7 7 7 7" />
-                </svg>
-            </button>
         </aside>
         
         <!-- 右侧内容区域 -->
         <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'ml-64']" style="padding-top: 4.5rem;">
             <!-- 顶部操作栏 -->
-            <header :class="['fixed top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-between items-center border-b transition-colors duration-300', backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white']" style="padding-left: 1rem;">
+            <header :class="['fixed top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-between items-center border-b transition-colors duration-300', borderClass + ' ' + bgClass]" style="padding-left: 1rem;">
                 <!-- 左侧：菜单按钮和标题放在同一行 -->
                 <div class="flex items-center">
                     <!-- 菜单按钮（侧边栏关闭时显示） -->
                     <button 
                         v-if="isSidebarCollapsed"
                         @click="openSidebar"
-                        :class="['p-1.5 rounded transition-colors mr-1', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600']"
+                        :class="['p-1.5 rounded transition-colors mr-1', hoverBgClass + ' text-gray-600']"
                         aria-label="打开菜单"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -241,7 +192,7 @@
                         </svg>
                     </button>
                     
-                    <h2 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">
+                    <h2 class="text-lg font-semibold" :style="{ color: textClass }">
                         {{ activeTab === 'daily' ? '每日一文' : (activeTab === 'favorites' ? '收藏文章' : (activeTab === 'admin' ? '用户管理' : '本地文章')) }}
                     </h2>
                 </div>
@@ -250,21 +201,21 @@
                     <template v-if="!user">
                         <button 
                             @click="openAuth('login')"
-                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
                         >
                             登录
                         </button>
                         <button 
                             @click="openAuth('register')"
-                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white']"
+                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', isDark ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white']"
                         >
                             注册
                         </button>
                     </template>
                     
-                    <!-- 已登录显示用户名和登出 -->
+                    <!-- 已登录显示用户名 -->
                     <template v-else>
-                        <span :class="['text-sm mr-2', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
+                        <span :class="['text-sm mr-2', textClass]">
                             {{ user.username }}
                         </span>
                     </template>
@@ -273,7 +224,7 @@
                     <button 
                         ref="settingsButtonRef"
                         @click="toggleSettings"
-                        :class="['p-2 rounded-full transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100']"
+                        :class="['p-2 rounded-full transition-colors', hoverBgClass]"
                         aria-label="设置"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -627,11 +578,11 @@
                     <!-- 设置面板 - 避免影响滚动 -->
                     <div v-if="showSettings" 
                          :style="{ top: settingsPosition.top + 'px', left: settingsPosition.left + 'px' }" 
-                         :class="['fixed z-50 rounded-lg shadow-lg border p-4 min-w-[200px] max-w-[calc(100vw-2rem)] transition-colors duration-300', backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-100']" 
+                         :class="['fixed z-50 rounded-lg shadow-lg border p-4 min-w-[200px] max-w-[calc(100vw-2rem)] transition-colors duration-300', isDark ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-100']" 
                          @click.stop>
                     <div class="flex justify-between items-center mb-3">
-                        <h3 :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-sm font-medium">阅读设置</h3>
-                        <button @click="showSettings = false" :style="{ color: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }" class="hover:text-gray-400 transition-colors">
+                        <h3 :style="{ color: textClass }" class="text-sm font-medium">阅读设置</h3>
+                        <button @click="showSettings = false" :style="{ color: isDark ? '#9ca3af' : '#6b7280' }" class="hover:text-gray-400 transition-colors">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -640,13 +591,13 @@
                     
                     <!-- 用户管理选项 (已登录用户显示) -->
                     <template v-if="user">
-                        <div class="mb-3 border-t pt-3" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                        <div class="mb-3 border-t pt-3" :style="{ borderColor: isDark ? '#374151' : '#e5e7eb' }">
                             <div class="flex items-center justify-between mb-2">
-                                <span :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-sm font-medium">{{ user.username }}</span>
+                                <span :style="{ color: textClass }" class="text-sm font-medium">{{ user.username }}</span>
                             </div>
                             <button 
                                 @click="openChangePassword"
-                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700']"
+                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', hoverBgClass + ' text-gray-700']"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -655,7 +606,7 @@
                             </button>
                             <button 
                                 @click="doLogout"
-                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700']"
+                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors', hoverBgClass + ' text-gray-700']"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -667,11 +618,11 @@
                     
                     <!-- 字体大小调整 -->
                     <div class="mb-3">
-                        <label :style="{ color: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }" class="block text-xs mb-2">字体大小</label>
+                        <label :style="{ color: isDark ? '#9ca3af' : '#6b7280' }" class="block text-xs mb-2">字体大小</label>
                         <div class="flex items-center justify-between gap-3">
                             <button 
                                 @click="adjustFontSize(-1)" 
-                                :class="['p-2 rounded-full transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100']"
+                                :class="['p-2 rounded-full transition-colors', hoverBgClass]"
                                 aria-label="减小字体"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -813,12 +764,25 @@
                 const activeTab = ref('daily');
                 // 背景色选项：paper（默认纸张色）, white（纯白）, dark（黑色）
                 const backgroundColor = ref('paper');
+                
+                // 简化样式计算属性
+                const isDark = computed(() => backgroundColor.value === 'dark');
+                const bgClass = computed(() => isDark.value ? 'bg-gray-900' : 'bg-white');
+                const textClass = computed(() => isDark.value ? 'text-gray-100' : 'text-gray-800');
+                const borderClass = computed(() => isDark.value ? 'border-gray-700' : 'border-gray-200');
+                const hoverBgClass = computed(() => isDark.value ? 'hover:bg-gray-800' : 'hover:bg-gray-100');
+                const cardBgClass = computed(() => isDark.value ? 'bg-gray-800' : 'bg-white');
+                const badgeBgClass = computed(() => isDark.value ? 'bg-gray-700' : 'bg-blue-200');
+                
+                // 导航菜单激活状态样式
+                const navActiveClass = computed(() => isDark.value ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800');
+                
                 // 本地文章列表
                 const localArticles = ref([]);
                 // 保存当前查看的每日一文，避免切换后重新请求
                 const currentDailyArticle = ref(null);
                 // 侧边栏展开/折叠状态
-                const isSidebarCollapsed = ref(false);
+                const isSidebarCollapsed = ref(true);
                 const favoriteArticles = ref([]);
                 // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
                 const isViewingLocal = ref(false);
@@ -1221,15 +1185,6 @@
                     window.scrollTo(0, scrollTop);
                 };
 
-                // 切换侧边栏
-                const toggleSidebar = () => {
-                    if (isSidebarCollapsed.value) {
-                        openSidebar();
-                    } else {
-                        closeSidebar();
-                    }
-                };
-
                 // 监听背景色变化，更新body样式
                 watch(backgroundColor, (newColor) => {
                     const body = document.body;
@@ -1478,9 +1433,16 @@
                     openSidebar,
                     isOpeningSidebar,
                     closeSidebar,
-                    toggleSidebar,
                     backgroundColor,
-                     localArticles,
+                    isDark,
+                    bgClass,
+                    textClass,
+                    borderClass,
+                    hoverBgClass,
+                    cardBgClass,
+                    badgeBgClass,
+                    navActiveClass,
+                    localArticles,
                       favoriteArticles,
                       toggleFavorite,
                       isFavorited,
