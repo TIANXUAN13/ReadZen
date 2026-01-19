@@ -1,10 +1,10 @@
-from flask import Flask, request, jsonify, session, send_from_directory
-from flask_cors import CORS
 import os
 import sqlite3
 import requests
+import shutil  # 新增：用于文件复制
 from functools import wraps
 from flask import Flask, request, jsonify, session, send_from_directory
+from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 
@@ -20,15 +20,87 @@ app.secret_key = os.environ.get('SECRET_KEY', 'super-secret-key')
 
 CORS(app, supports_credentials=True)
 
-# 使用独立的数据目录
+# --- 核心修改开始 ---
+
+# 定义数据目录（这是挂载出来的目录）
 DATA_DIR = os.environ.get('DATA_DIR', '/app/data')
-os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, 'data.db')
 
-# init db on startup
-DB_INIT = os.path.exists(DB_PATH)
-if not DB_INIT:
-    init_db()
+# 定义预置数据目录（这是镜像里原本存放数据的目录，不映射）
+PRELOADED_DB_PATH = '/app/preloaded_data/data.db'
+
+def initialize_application():
+    """初始化应用数据逻辑"""
+    # 1. 确保数据目录存在
+    if not os.path.exists(DATA_DIR):
+        try:
+            os.makedirs(DATA_DIR, mode=0o775, exist_ok=True)
+            print(f"[INFO] Created data directory: {DATA_DIR}")
+        except OSError as e:
+            print(f"[ERROR] Failed to create data directory {DATA_DIR}. Permission denied? Error: {e}")
+            return
+
+    # 2. 检查数据库文件是否存在
+    if not os.path.exists(DB_PATH):
+        print(f"[INFO] Database not found at {DB_PATH}")
+        
+        # 3. 策略：如果镜像里有预置数据，先复制过来
+        if os.path.exists(PRELOADED_DB_PATH):
+            try:
+                print(f"[INFO] Found preloaded data at {PRELOADED_DB_PATH}, copying...")
+                shutil.copy2(PRELOADED_DB_PATH, DB_PATH)
+                # 确保复制后的文件权限正确（尝试设置，失败则忽略）
+                try:
+                    os.chmod(DB_PATH, 0o664)
+                except:
+                    pass
+                print(f"[INFO] Database initialized from preloaded data.")
+            except Exception as e:
+                print(f"[ERROR] Failed to copy preloaded data: {e}")
+                # 复制失败（通常是权限问题），尝试创建一个新的
+                print("[INFO] Attempting to create a new empty database instead...")
+                init_db()
+        else:
+            # 4. 如果没有预置数据，直接初始化新的
+            print("[INFO] No preloaded data found. Initializing new database...")
+            init_db()
+    else:
+        print(f"[INFO] Database found at {DB_PATH}, skipping initialization.")
+
+    # 5. 确保 admin 用户存在 (无论数据库是复制的还是新建的)
+    create_admin_user()
+
+def create_admin_user():
+    """启动时检查并创建 admin 用户"""
+    try:
+        # 此时数据库一定存在了，建立连接检查
+        # 注意：这里需要临时修改 database.py 里的 DB_PATH 或者确保 database.py 引用的是正确的全局路径
+        # 由于 database.py 里的路径可能是硬编码或导入时确定的，建议在 database.py 里也做相应调整
+        # 这里假设 database.py 会读取环境变量或者我们不需要修改它（如果它每次都读文件）
+        
+        # 为了保险，我们重新初始化一下 database 模块里的路径（如果那是动态的）
+        # 但通常 init_db() 里的逻辑依赖 database.py 的实现。
+        # 简单调用 get_user_by_username 即可，如果报错说明表结构不对，再次 init_db
+        try:
+            admin_user = get_user_by_username('admin')
+        except sqlite3.OperationalError:
+            # 如果表不存在（比如复制的文件损坏），重新建表
+            init_db()
+            admin_user = get_user_by_username('admin')
+
+        if not admin_user:
+            admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            if admin_password:
+                create_user('admin', admin_password)
+                print(f"[INFO] Admin user created with password: {admin_password}")
+    except Exception as e:
+        print(f"[WARNING] Failed to check/create admin user: {e}")
+
+# 执行初始化
+with app.app_context():
+    initialize_application()
+
+# --- 核心修改结束 ---
 
 # Scheme A: Root path serves frontend index.html
 @app.route('/', methods=['GET'])
@@ -88,6 +160,7 @@ def change_password():
         return jsonify({'error': 'invalid old password'}), 401
     from werkzeug.security import generate_password_hash
     hashed = generate_password_hash(new_password)
+    # 确保这里连接的是正确的 DB_PATH
     conn = sqlite3.connect(DB_PATH)
     conn.execute('UPDATE users SET password = ? WHERE id = ?', (hashed, user_id))
     conn.commit()
@@ -145,7 +218,6 @@ def daily():
 def admin_users():
     if 'user_id' not in session:
         return jsonify({'error': 'unauthorized'}), 401
-    # 只有 admin 用户可以访问
     if session.get('username') != 'admin':
         return jsonify({'error': 'forbidden'}), 403
     users = get_all_users()
@@ -155,38 +227,14 @@ def admin_users():
 def admin_delete_user(user_id):
     if 'user_id' not in session:
         return jsonify({'error': 'unauthorized'}), 401
-    # 只有 admin 用户可以访问
     if session.get('username') != 'admin':
         return jsonify({'error': 'forbidden'}), 403
-    # 不能删除自己
     if user_id == session['user_id']:
         return jsonify({'error': 'cannot delete yourself'}), 400
     delete_user(user_id)
     return jsonify({'deleted': user_id})
 
-
-def create_admin_user():
-    """启动时检查并创建 admin 用户"""
-    # 确保数据库表已创建
-    init_db()
-    admin_user = get_user_by_username('admin')
-    if not admin_user:
-        admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
-        if admin_password:
-            try:
-                create_user('admin', admin_password)
-                print(f"[INFO] Admin user created with password: {admin_password}")
-            except Exception as e:
-                print(f"[WARNING] Failed to create admin user: {e}")
-
-
-# 在应用启动时创建 admin 用户
-with app.app_context():
-    create_admin_user()
-
-
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     host = os.environ.get('HOST', '0.0.0.0')
     app.run(host=host, port=port, debug=True)
-
