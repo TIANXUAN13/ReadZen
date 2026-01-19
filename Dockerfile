@@ -29,13 +29,15 @@ COPY database.py .
 # 复制前端文件
 COPY index.html .
 
-# 创建数据目录并设置权限
-RUN mkdir -p /app/data && chown -R appuser:appgroup /app/data && chmod 775 /app/data
+# 先创建用户和组，再创建数据目录并设置权限
+RUN groupadd -r appgroup && useradd -r -g appgroup appuser && \
+    mkdir -p /app/data && \
+    chown -R appuser:appgroup /app/data && \
+    chmod 775 /app/data && \
+    chown -R appuser:appgroup /app
+
 RUN rm -rf /root/.cache/pip
 
-# 减小权限（可选）
-RUN groupadd -r appgroup && useradd -r -g appgroup appuser && \
-    chown -R appuser:appgroup /app
 USER appuser
 
 EXPOSE 5000
