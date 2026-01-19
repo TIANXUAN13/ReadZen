@@ -47,8 +47,6 @@ jobs:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader
           tags: |
             type=raw,value=${{ github.event.inputs.tag || 'latest' }}
-            type=sha,prefix=
-            type=ref,event=tag
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
