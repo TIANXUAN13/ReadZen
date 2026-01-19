@@ -2,10 +2,18 @@ from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import os
 import sqlite3
+import requests
 from functools import wraps
 from flask import Flask, request, jsonify, session, send_from_directory
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+
+# 导入数据库函数
+from database import (
+    init_db, get_user_by_username, create_user, verify_user,
+    get_favorites, add_favorite, remove_favorite,
+    get_all_users, delete_user
+)
 
 app = Flask(__name__, static_folder='.')
 app.secret_key = os.environ.get('SECRET_KEY', 'super-secret-key')
