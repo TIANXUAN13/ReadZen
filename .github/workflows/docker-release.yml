@@ -53,7 +53,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${{ github.event.inputs.tag || 'latest' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ADMIN_PASSWORD=${{ github.event.inputs.password || 'admin123' }}
@@ -67,13 +67,24 @@ jobs:
           if [ "$TAG" == "latest" ]; then
             echo "is_latest=true" >> $GITHUB_OUTPUT
           fi
+          
+          # 获取 metadata-action 生成的第一个 tag（用户选择的）
+          echo "docker_tag=$(echo '${{ steps.meta.outputs.tags }}' | tr ',' '\n' | head -1)" >> $GITHUB_OUTPUT
 
       - name: Create Release Asset
         if: steps.tag-info.outputs.is_latest != 'true'
         run: |
-          TAG="${{ github.event.inputs.tag }}"
-          # Save Docker image as tar file
-          docker save ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${TAG} > daily-article-reader.tar
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader"
+          TAG="${{ steps.tag-info.outputs.tag }}"
+          
+          echo "Saving Docker image: ${IMAGE_NAME}:${TAG}"
+          
+          # 列出所有本地镜像确认存在
+          echo "Local images:"
+          docker images | grep daily-article-reader || true
+          
+          # Save Docker image as tar file - 使用完整镜像名称
+          docker save ${IMAGE_NAME}:${TAG} -o daily-article-reader.tar
           
           # Create checksum
           sha256sum daily-article-reader.tar > daily-article-reader.tar.sha256
