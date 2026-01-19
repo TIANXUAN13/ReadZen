@@ -2,16 +2,23 @@ from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 import os
 import sqlite3
-import requests
+from functools import wraps
+from flask import Flask, request, jsonify, session, send_from_directory, CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-from database import init_db, get_user_by_username, create_user, verify_user, add_favorite, get_favorites, remove_favorite, get_all_users, get_user_by_id, delete_user
+from datetime import datetime
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='.')
 app.secret_key = os.environ.get('SECRET_KEY', 'super-secret-key')
+
 CORS(app, supports_credentials=True)
 
+# 使用独立的数据目录
+DATA_DIR = os.environ.get('DATA_DIR', '/app/data')
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, 'data.db')
+
 # init db on startup
-DB_INIT = os.path.exists(os.path.join(os.path.dirname(__file__), 'data.db'))
+DB_INIT = os.path.exists(DB_PATH)
 if not DB_INIT:
     init_db()
 
@@ -73,7 +80,7 @@ def change_password():
         return jsonify({'error': 'invalid old password'}), 401
     from werkzeug.security import generate_password_hash
     hashed = generate_password_hash(new_password)
-    conn = sqlite3.connect(os.path.join(os.path.dirname(__file__), 'data.db'))
+    conn = sqlite3.connect(DB_PATH)
     conn.execute('UPDATE users SET password = ? WHERE id = ?', (hashed, user_id))
     conn.commit()
     conn.close()

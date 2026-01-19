@@ -1,3 +1,16 @@
+# Git 和版本控制
+.git
+.gitignore
+.gitattributes
+
+# IDE 和编辑器配置
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Python 缓存
 __pycache__
 *.py[cod]
 *$py.class
@@ -21,5 +34,41 @@ wheels/
 venv/
 env/
 .venv
-data.db
+
+# 测试文件
+tests/
+test_*.py
+*_test.py
+
+# 文档和配置
+README.md
+README_*.md
+CHANGELOG*
+LICENSE
+AGENTS.md
+API_DOCUMENTATION.md
+
+# Docker 相关（避免递归构建）
+Dockerfile
+docker-compose.yml
+docker-compose*.yml
+
+# 临时文件
 *.log
+*.tmp
+*.tar
+*.tar.gz
+temp/
+
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 数据库和数据文件
+data.db
+
+# 其他不需要的文件
+.env
+.env.*
+*.md
+!server.py
