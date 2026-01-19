@@ -10,15 +10,15 @@ services:
     environment:
       - PORT=5000
       - HOST=0.0.0.0
-      - DATA_DIR=/data
+      - DATA_DIR=/app/data
       # 可选：设置管理员密码（默认为 admin123）
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
       # 可选：设置 Flask secret key
       - SECRET_KEY=${SECRET_KEY:-super-secret-key}
     volumes:
-      # 数据持久化：将本地 ./data 目录挂载到容器的 /data 目录
+      # 数据持久化：将本地 ./data 目录挂载到容器的 /app/data 目录
       # 所有用户数据、收藏等都会保存到本地
-      - ./data:/data:rw
+      - ./data:/app/data:rw
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/"]
       interval: 30s
