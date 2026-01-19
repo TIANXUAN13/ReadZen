@@ -24,8 +24,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # 复制应用文件
 COPY server.py .
+COPY database.py .
 
-# 清理 pip 缓存
+# 复制 index.html（如果存在）
+COPY index.html . 2>/dev/null || true
 RUN rm -rf /root/.cache/pip
 
 # 减小权限（可选）
