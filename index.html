@@ -441,50 +441,64 @@
                                 v-for="(item, index) in localArticles" 
                                 :key="item.id || index"
                                 @click="viewLocalArticle(item)"
-                                :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50 border border-gray-200']"
+                                :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
                             >
                                 <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
                                 <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
                                 <div class="flex justify-between items-center">
-                                    <span class="text-xs opacity-40">{{ item.fileName }}</span>
-                                    <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
+                                    <div class="flex flex-col">
+                                        <span class="text-xs opacity-40">{{ item.fileName }}</span>
+                                        <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
+                                    </div>
+                                    <button @click.stop="downloadLocalArticle(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
+                                    </button>
                                 </div>
                             </div>
                         </div>
                     </div>
                  </div>
 
-                 <!-- 收藏文章列表 -->
-                 <div v-else-if="activeTab === 'favorites'" class="h-full overflow-y-auto p-6">
-                     <div class="max-w-3xl mx-auto">
-                         <div v-if="favoriteArticles.length === 0" class="text-center py-12">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                             </svg>
-                             <p class="text-lg opacity-60">暂无收藏文章</p>
-                             <p class="text-sm opacity-40 mt-2">阅读文章时点击心形图标收藏</p>
-                         </div>
-                         <div v-else class="space-y-4">
-                             <div
-                                 v-for="(item, index) in favoriteArticles"
-                                 :key="item.id || index"
-                                 @click="viewLocalArticle(item)"
-                                 :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-800 hover:bg-gray-700' : 'bg-white hover:bg-gray-50 border border-gray-200']"
-                             >
-                                 <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
-                                 <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
-                                 <div class="flex justify-between items-center">
-                                     <span class="text-xs opacity-40">{{ new Date(item.dateAdded).toLocaleDateString() }}</span>
-                                     <button @click.stop="removeFavorite(item.id)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="移除收藏">
-                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                         </svg>
-                                     </button>
-                                 </div>
-                             </div>
-                         </div>
-                      </div>
-                  </div>
+                  <!-- 收藏文章列表 -->
+                  <div v-else-if="activeTab === 'favorites'" class="h-full overflow-y-auto p-6">
+                      <div class="max-w-3xl mx-auto">
+                          <div v-if="favoriteArticles.length === 0" class="text-center py-12">
+                              <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                              </svg>
+                              <p class="text-lg opacity-60">暂无收藏文章</p>
+                              <p class="text-sm opacity-40 mt-2">阅读文章时点击心形图标收藏</p>
+                          </div>
+                          <div v-else class="space-y-4">
+                              <div
+                                  v-for="(item, index) in favoriteArticles"
+                                  :key="item.id || index"
+                                  @click="viewLocalArticle(item)"
+                                  :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
+                              >
+                                  <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                  <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                  <div class="flex justify-between items-center">
+                                      <span class="text-xs opacity-40">{{ new Date(item.dateAdded).toLocaleDateString() }}</span>
+                                      <div class="flex items-center gap-2">
+                                          <button @click.stop="downloadFavorite(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
+                                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                              </svg>
+                                          </button>
+                                          <button @click.stop="removeFavorite(item.id)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="移除收藏">
+                                              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                              </svg>
+                                          </button>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                       </div>
+                   </div>
 
                   <!-- 用户管理页面 (仅 admin 可见) -->
                   <div v-else-if="activeTab === 'admin'" class="h-full overflow-y-auto p-6">
@@ -996,9 +1010,8 @@
                     const input = document.createElement('input');
                     input.type = 'file';
                     input.webkitdirectory = true;
-                    input.directory = true;
                     input.multiple = true;
-                    input.accept = '.txt,.md,.text,.log,.article,text/plain,text/markdown';
+                    input.accept = '.txt,.md,.text,.log,.article,.htm,.html,text/*';
 
                     input.onchange = (e) => {
                         const files = e.target.files;
@@ -1007,7 +1020,7 @@
                             alert('未选择任何文件');
                             return;
                         }
-                        readLocalFiles(files);
+                        readLocalFiles(Array.from(files));
                         activeTab.value = 'downloads';
                     };
 
@@ -1021,22 +1034,32 @@
                     const totalFiles = files.length;
                     let validFilesCount = 0;
 
-                    // 先统计有效的txt/md文件数量
-                    Array.from(files).forEach(file => {
+                    // 先统计有效的txt/md/html文件数量
+                    files.forEach(file => {
                         const fileName = file.name.toLowerCase();
-                        if (fileName.endsWith('.txt') || fileName.endsWith('.md') || 
-                            fileName.endsWith('.text') || fileName.endsWith('.log') ||
-                            file.type.includes('text') || file.type === '') {
+                        const isTextFile = fileName.endsWith('.txt') || 
+                                          fileName.endsWith('.md') || 
+                                          fileName.endsWith('.text') || 
+                                          fileName.endsWith('.log') ||
+                                          fileName.endsWith('.article') ||
+                                          fileName.endsWith('.htm') ||
+                                          fileName.endsWith('.html') ||
+                                          file.type.includes('text') ||
+                                          file.type === '' ||
+                                          fileName.endsWith('.utf8') ||
+                                          fileName.endsWith('.ansi');
+                        
+                        if (isTextFile && !file.name.startsWith('.') && file.size > 0) {
                             validFilesCount++;
                         }
                     });
 
                     if (validFilesCount === 0) {
-                        alert('所选文件夹中没有找到txt或md格式的文章文件');
+                        alert('所选文件夹中没有找到可读的文章文件（支持 .txt, .md, .html 等格式）\n请确保文件不是隐藏文件且有实际内容。');
                         return;
                     }
 
-                    Array.from(files).forEach(file => {
+                    files.forEach(file => {
                         const fileName = file.name.toLowerCase();
                         // 扩展文件类型检测
                         const isTextFile = fileName.endsWith('.txt') || 
@@ -1044,40 +1067,60 @@
                                           fileName.endsWith('.text') || 
                                           fileName.endsWith('.log') ||
                                           fileName.endsWith('.article') ||
+                                          fileName.endsWith('.htm') ||
+                                          fileName.endsWith('.html') ||
                                           file.type.includes('text') ||
-                                          file.type === '';
+                                          file.type === '' ||
+                                          fileName.endsWith('.utf8') ||
+                                          fileName.endsWith('.ansi');
 
-                        if (isTextFile && !file.name.startsWith('.')) {
+                        if (isTextFile && !file.name.startsWith('.') && file.size > 0) {
                             const reader = new FileReader();
                             reader.onload = (e) => {
                                 const content = e.target.result;
                                 const lines = content.split('\n');
-                                let title = file.name.replace(/\.(txt|md|text|log)$/i, '');
+                                let title = file.name.replace(/\.(txt|md|text|log|htm|html|article)$/i, '');
                                 let author = '未知作者';
                                 let articleContent = content;
 
+                                // 尝试从文件内容中提取标题和作者
                                 if (lines.length > 0 && lines[0].trim()) {
-                                    title = lines[0].trim();
+                                    // 如果第一行比较短（小于100字符），把它作为标题
+                                    const firstLine = lines[0].trim();
+                                    if (firstLine.length < 100 && !firstLine.startsWith('<')) {
+                                        title = firstLine;
+                                    }
                                 }
                                 if (lines.length > 1) {
                                     const authorLine = lines[1].trim();
-                                    if (authorLine.startsWith('作者：') || authorLine.startsWith('作者:') || authorLine.startsWith('Author:') || authorLine.startsWith('author:')) {
-                                        author = authorLine.replace(/作者：|作者:|Author:|author:/, '').trim();
+                                    if (authorLine.startsWith('作者：') || authorLine.startsWith('作者:') || 
+                                        authorLine.startsWith('Author:') || authorLine.startsWith('author:') ||
+                                        authorLine.startsWith('【作者】') || authorLine.startsWith('作者 】')) {
+                                        author = authorLine.replace(/作者：|作者:|Author:|author:|【作者】|作者 】/, '').trim();
                                         articleContent = lines.slice(2).join('\n');
                                     }
                                 }
 
-                                const htmlContent = articleContent
-                                    .split('\n\n')
-                                    .filter(paragraph => paragraph.trim())
-                                    .map(paragraph => `<p>${paragraph}</p>`)
-                                    .join('');
+                                // 转换内容为HTML
+                                let htmlContent;
+                                if (fileName.endsWith('.html') || fileName.endsWith('.htm')) {
+                                    // HTML文件直接使用内容
+                                    htmlContent = articleContent;
+                                } else {
+                                    // 纯文本文件转换为HTML段落
+                                    htmlContent = articleContent
+                                        .split('\n\n')
+                                        .filter(paragraph => paragraph.trim())
+                                        .map(paragraph => `<p>${paragraph.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</p>`)
+                                        .join('');
+                                }
 
                                 localArticles.value.push({
                                     id: Date.now() + Math.random(),
                                     title,
                                     author,
                                     content: htmlContent,
+                                    originalContent: content, // 保存原始内容用于下载
                                     fileName: file.name,
                                     fileSize: file.size,
                                     lastModified: file.lastModified
@@ -1258,6 +1301,55 @@
 
                 // 是否已收藏
                 const isFavorited = computed(() => article.value && favoriteArticles.value.some(fav => fav.id === article.value.id));
+
+                // 下载收藏的文章
+                const downloadFavorite = (item) => {
+                    // 提取纯文本内容（去除HTML标签）
+                    let content = item.content || '';
+                    const tempDiv = document.createElement('div');
+                    tempDiv.innerHTML = content;
+                    const plainText = tempDiv.textContent || tempDiv.innerText || '';
+                    
+                    // 构建下载内容
+                    const downloadContent = `${item.title}\n作者：${item.author || '佚名'}\n\n${plainText}`;
+                    
+                    // 创建Blob并下载
+                    const blob = new Blob([downloadContent], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${item.title}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
+
+                // 下载本地文章
+                const downloadLocalArticle = (item) => {
+                    // 使用保存的原始内容，如果没有则从HTML提取
+                    let content = item.originalContent || '';
+                    if (!content) {
+                        let htmlContent = item.content || '';
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = htmlContent;
+                        content = tempDiv.textContent || tempDiv.innerText || '';
+                    }
+                    
+                    // 构建下载内容
+                    const downloadContent = `${item.title}\n作者：${item.author || '佚名'}\n\n${content}`;
+                    
+                    // 创建Blob并下载
+                    const blob = new Blob([downloadContent], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${item.title}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                };
 
                 // 移除收藏
                 const removeFavorite = async (id) => {
@@ -1445,9 +1537,11 @@
                     localArticles,
                       favoriteArticles,
                       toggleFavorite,
-                      isFavorited,
-                      removeFavorite,
-                      loadFavorites,
+                       isFavorited,
+                       removeFavorite,
+                       downloadFavorite,
+                       downloadLocalArticle,
+                       loadFavorites,
                       bgColors,
                       readingTime,
                       isViewingLocal,
