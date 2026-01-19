@@ -53,18 +53,35 @@
 <body class="antialiased h-screen flex flex-col">
 
     <div id="app" class="w-full h-full flex flex-row">
+        <!-- 左侧导航面板遮罩层 -->
+        <div v-if="!isSidebarCollapsed" 
+             class="fixed inset-0 z-40 bg-black bg-opacity-50 touch-none"
+             @click.self="closeSidebar">
+        </div>
+
         <!-- 左侧导航面板 -->
         <aside :class="[
-            'absolute left-0 top-0 bottom-0 z-20 border-r transition-all duration-300 ease-in-out',
-            isSidebarCollapsed ? 'w-0' : 'w-64',
+            'fixed left-0 top-0 bottom-0 z-50 border-r transition-transform duration-300 ease-in-out overflow-hidden',
+            isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0',
             backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white'
-        ]">
-            <div class="h-full flex flex-col p-4" v-if="!isSidebarCollapsed">
-                <!-- 折叠/展开按钮 -->
+        ]" style="width: 256px;">
+            <div class="h-full flex flex-col p-4">
+                <!-- 关闭按钮 (移动端显示) -->
                 <button 
-                    @click="isSidebarCollapsed = !isSidebarCollapsed"
+                    @click="closeSidebar"
+                    :class="['absolute top-2 right-2 p-1 rounded-full md:hidden', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-500']"
+                    aria-label="关闭菜单"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+                
+                <!-- 折叠/展开按钮 (桌面端显示) -->
+                <button 
+                    @click="toggleSidebar"
                     :class="[
-                        'absolute top-1/2 right-[-8px] z-30 p-1 rounded-full transition-all transform hover:scale-110',
+                        'absolute top-1/2 right-[-16px] z-30 p-2 rounded-full transition-all transform hover:scale-110 hidden md:block',
                         backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700 shadow-lg text-white' : 'bg-white border-gray-200 shadow-md text-gray-800'
                     ]"
                     :style="{ border: '1px solid', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)', transform: 'translateY(-50%)' }"
@@ -72,13 +89,13 @@
                 >
                     <svg 
                         xmlns="http://www.w3.org/2000/svg" 
-                        class="h-3 w-3 transition-transform duration-300" 
+                        class="h-4 w-4 transition-transform duration-300" 
                         :class="isSidebarCollapsed ? 'rotate-0' : 'rotate-180'"
                         fill="none" 
                         viewBox="0 0 24 24" 
                         stroke="currentColor"
                     >
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
                 </button>
                 
@@ -207,15 +224,15 @@
         </aside>
         
         <!-- 右侧内容区域 -->
-        <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'ml-64']">
+        <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'ml-64']" style="padding-top: 4.5rem;">
             <!-- 顶部操作栏 -->
-            <header :class="['p-4 md:p-6 flex justify-between items-center border-b transition-colors duration-300', backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white']">
+            <header :class="['fixed top-0 left-0 right-0 z-50 p-4 md:p-6 flex justify-between items-center border-b transition-colors duration-300', backgroundColor === 'dark' ? 'border-gray-700 bg-gray-900' : 'border-gray-200 bg-white']" style="padding-left: 1rem;">
                 <!-- 左侧：菜单按钮和标题放在同一行 -->
                 <div class="flex items-center">
                     <!-- 菜单按钮（侧边栏关闭时显示） -->
                     <button 
                         v-if="isSidebarCollapsed"
-                        @click="isSidebarCollapsed = false"
+                        @click="openSidebar"
                         :class="['p-1.5 rounded transition-colors mr-1', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600']"
                         aria-label="打开菜单"
                     >
@@ -250,24 +267,12 @@
                         <span :class="['text-sm mr-2', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
                             {{ user.username }}
                         </span>
-                        <button 
-                            @click="openChangePassword"
-                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors mr-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700']"
-                            title="修改密码"
-                        >
-                            修改密码
-                        </button>
-                        <button 
-                            @click="doLogout"
-                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700']"
-                        >
-                            登出
-                        </button>
                     </template>
                     
                     <!-- 设置按钮 -->
                     <button 
-                        @click="showSettings = !showSettings"
+                        ref="settingsButtonRef"
+                        @click="toggleSettings"
                         :class="['p-2 rounded-full transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100']"
                         aria-label="设置"
                     >
@@ -612,11 +617,18 @@
                       </div>
                   </div>
 
-                  <!-- 设置面板遮罩层 -->
-                <div v-if="showSettings" class="fixed inset-0 z-20 bg-black bg-opacity-10" @click="showSettings = false"></div>
-                
-                <!-- 设置面板 -->
-                <div v-if="showSettings" :class="['absolute top-4 right-4 z-30 rounded-lg shadow-lg border p-4 min-w-[200px] transition-colors duration-300', backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-100']" @click.stop>
+                    <!-- 设置面板遮罩层 -->
+                    <div v-if="showSettings" 
+                         class="fixed inset-0 z-40 bg-black bg-opacity-10 pointer-events-auto" 
+                         style="overflow-y: auto; -webkit-overflow-scrolling: touch;"
+                         @click="handleSettingsBackdropClick">
+                    </div>
+                    
+                    <!-- 设置面板 - 避免影响滚动 -->
+                    <div v-if="showSettings" 
+                         :style="{ top: settingsPosition.top + 'px', left: settingsPosition.left + 'px' }" 
+                         :class="['fixed z-50 rounded-lg shadow-lg border p-4 min-w-[200px] max-w-[calc(100vw-2rem)] transition-colors duration-300', backgroundColor === 'dark' ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-100']" 
+                         @click.stop>
                     <div class="flex justify-between items-center mb-3">
                         <h3 :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-sm font-medium">阅读设置</h3>
                         <button @click="showSettings = false" :style="{ color: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }" class="hover:text-gray-400 transition-colors">
@@ -625,6 +637,33 @@
                             </svg>
                         </button>
                     </div>
+                    
+                    <!-- 用户管理选项 (已登录用户显示) -->
+                    <template v-if="user">
+                        <div class="mb-3 border-t pt-3" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                            <div class="flex items-center justify-between mb-2">
+                                <span :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }" class="text-sm font-medium">{{ user.username }}</span>
+                            </div>
+                            <button 
+                                @click="openChangePassword"
+                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700']"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                修改密码
+                            </button>
+                            <button 
+                                @click="doLogout"
+                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700']"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                                </svg>
+                                登出
+                            </button>
+                        </div>
+                    </template>
                     
                     <!-- 字体大小调整 -->
                     <div class="mb-3">
@@ -759,16 +798,18 @@
     </div>
 
     <script>
-        const { createApp, ref, onMounted, computed, watch, reactive } = Vue;
+        const { createApp, ref, onMounted, computed, watch, reactive, nextTick } = Vue;
 
         createApp({
-            setup() {
+            setup() { 
                 const article = ref(null);
                 const loading = ref(true);
                 const error = ref(null);
                 const currentDate = ref('');
                 const fontSize = ref(18);
                 const showSettings = ref(false);
+                const settingsPosition = ref({ top: 0, left: 0 });
+                const settingsButtonRef = ref(null);
                 const activeTab = ref('daily');
                 // 背景色选项：paper（默认纸张色）, white（纯白）, dark（黑色）
                 const backgroundColor = ref('paper');
@@ -892,6 +933,14 @@
                     error.value = null;
                     isViewingLocal.value = false;
                     
+                    // 滚动到顶部
+                    nextTick(() => {
+                        const articleElement = document.querySelector('article');
+                        if (articleElement) {
+                            articleElement.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    });
+                    
                     try {
                         // 1. 尝试直接请求
                         // 注意：如果遇到跨域(CORS)错误，请参考下面的代理方案
@@ -934,6 +983,50 @@
                     fontSize.value = Math.max(14, Math.min(28, fontSize.value + delta));
                 };
 
+                // 切换设置面板显示
+                const toggleSettings = (event) => {
+                    if (event) {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }
+                    
+                    if (!showSettings.value) {
+                        // 使用 ref 获取按钮位置，更可靠
+                        let button = settingsButtonRef.value;
+                        if (!button && event && event.target) {
+                            button = event.target.closest('button');
+                        }
+                        
+                        if (button) {
+                            const rect = button.getBoundingClientRect();
+                            settingsPosition.value = {
+                                top: rect.bottom + 8,
+                                left: rect.right - 200
+                            };
+                            if (settingsPosition.value.left < 16) {
+                                settingsPosition.value.left = 16;
+                            }
+                            if (settingsPosition.value.left + 200 > window.innerWidth - 16) {
+                                settingsPosition.value.left = window.innerWidth - 216;
+                            }
+                        } else {
+                            settingsPosition.value = {
+                                top: 64,
+                                left: window.innerWidth - 216
+                            };
+                        }
+                    }
+                    
+                    showSettings.value = !showSettings.value;
+                };
+
+                // 处理设置面板遮罩层点击
+                const handleSettingsBackdropClick = (event) => {
+                    if (event.target === event.currentTarget) {
+                        showSettings.value = false;
+                    }
+                };
+                
                 // 选择文件夹
                 const selectFolder = () => {
                     const input = document.createElement('input');
@@ -1048,12 +1141,93 @@
                     activeTab.value = 'daily';
                     isSidebarCollapsed.value = true;
                     isViewingLocal.value = true;
+                    
+                    // 滚动到顶部
+                    nextTick(() => {
+                        const articleElement = document.querySelector('article');
+                        if (articleElement) {
+                            articleElement.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                    });
                 };
 
                 // 处理文章滚动事件
                 const handleArticleScroll = (event) => {
-                    // 当文章滚动时，自动关闭侧边栏
+                    // 如果正在打开侧边栏，忽略这次滚动事件
+                    if (isOpeningSidebar.value) return;
+                    
+                    // 当文章滚动距离超过阈值时，自动关闭侧边栏
+                    const scrollTop = event.target.scrollTop;
+                    const scrollHeight = event.target.scrollHeight;
+                    const clientHeight = event.target.clientHeight;
+                    
+                    // 只在非顶部位置滚动时关闭侧边栏
+                    if (scrollTop > 50 && scrollTop < scrollHeight - clientHeight - 50) {
+                        isSidebarCollapsed.value = true;
+                    }
+                };
+
+                // 监听设置面板状态，锁定/解锁滚动防止页面抖动
+                watch(showSettings, (newVal) => {
+                    if (newVal) {
+                        // 打开面板时锁定滚动
+                        document.body.style.overflow = 'hidden';
+                        document.body.style.position = 'fixed';
+                        document.body.style.width = '100%';
+                    } else {
+                        // 关闭面板时恢复滚动
+                        document.body.style.overflow = '';
+                        document.body.style.position = '';
+                        document.body.style.width = '';
+                    }
+                });
+
+                // 打开侧边栏
+                const isOpeningSidebar = ref(false);
+                const openSidebar = () => {
+                    // 设置标志，防止点击时误触发滚动关闭
+                    isOpeningSidebar.value = true;
+                    setTimeout(() => {
+                        isOpeningSidebar.value = false;
+                    }, 300);
+                    
+                    // 记录当前滚动位置
+                    const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                    
+                    // 锁定滚动
+                    document.body.style.overflow = 'hidden';
+                    document.body.style.position = 'fixed';
+                    document.body.style.width = '100%';
+                    document.body.style.top = `-${scrollTop}px`;
+                    
+                    // 打开侧边栏
+                    isSidebarCollapsed.value = false;
+                };
+
+                // 关闭侧边栏
+                const closeSidebar = () => {
+                    // 获取之前保存的滚动位置
+                    const scrollTop = parseInt(document.body.style.top.replace('-', '').replace('px', '')) || 0;
+                    
                     isSidebarCollapsed.value = true;
+                    
+                    // 恢复滚动
+                    document.body.style.overflow = '';
+                    document.body.style.position = '';
+                    document.body.style.width = '';
+                    document.body.style.top = '';
+                    
+                    // 恢复滚动位置
+                    window.scrollTo(0, scrollTop);
+                };
+
+                // 切换侧边栏
+                const toggleSidebar = () => {
+                    if (isSidebarCollapsed.value) {
+                        openSidebar();
+                    } else {
+                        closeSidebar();
+                    }
                 };
 
                 // 监听背景色变化，更新body样式
@@ -1298,43 +1472,51 @@
                     currentDate: computed(() => formatDate()),
                     fontSize,
                     showSettings,
+                    settingsPosition,
+                    settingsButtonRef,
                     activeTab,
+                    openSidebar,
+                    isOpeningSidebar,
+                    closeSidebar,
+                    toggleSidebar,
                     backgroundColor,
                      localArticles,
-                     favoriteArticles,
-                     toggleFavorite,
-                     isFavorited,
-                     removeFavorite,
-                     loadFavorites,
-                     bgColors,
-                     readingTime,
-                     isViewingLocal,
-                     user,
-                     showAuth,
-                     authMode,
-                     loginForm,
-                     regForm,
-                     openAuth,
-                     doLogin,
-                      doRegister,
-                      doLogout,
-                      allUsers,
-                      loadingUsers,
-                      loadAllUsers,
-                      deleteUser,
-                      showChangePassword,
-                      changePasswordForm,
-                      changePasswordError,
-                      changePasswordLoading,
-                      openChangePassword,
-                      doChangePassword,
-                      formatDate,
-                      getArticle,
-                      adjustFontSize,
-                      viewLocalArticle,
-                      selectFolder,
-                      isSidebarCollapsed,
-                      handleArticleScroll
+                      favoriteArticles,
+                      toggleFavorite,
+                      isFavorited,
+                      removeFavorite,
+                      loadFavorites,
+                      bgColors,
+                      readingTime,
+                      isViewingLocal,
+                      user,
+                      showAuth,
+                      authMode,
+                      loginForm,
+                      regForm,
+                      openAuth,
+                      doLogin,
+                       doRegister,
+                       doLogout,
+                       allUsers,
+                       loadingUsers,
+                       loadAllUsers,
+                       deleteUser,
+                       showChangePassword,
+                       changePasswordForm,
+                       changePasswordError,
+                       changePasswordLoading,
+                       openChangePassword,
+                       doChangePassword,
+                       formatDate,
+                       getArticle,
+                        adjustFontSize,
+                        toggleSettings,
+                        handleSettingsBackdropClick,
+                        viewLocalArticle,
+                       selectFolder,
+                       isSidebarCollapsed,
+                       handleArticleScroll
                 };
             }
         }).mount('#app');
