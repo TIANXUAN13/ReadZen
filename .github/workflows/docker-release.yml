@@ -3,6 +3,10 @@ name: Docker Build & Release
 on:
   workflow_dispatch:
     inputs:
+      branch:
+        description: 'Git branch to build (e.g., main, dev, master)'
+        required: false
+        default: 'main'
       tag:
         description: 'Docker image tag (e.g., v1.0.0, latest)'
         required: false
@@ -25,9 +29,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || 'main' }}
 
       - name: Debug inputs
         run: |
+          echo "Input branch: ${{ github.event.inputs.branch }}"
           echo "Input tag: ${{ github.event.inputs.tag }}"
           echo "Input password: ${{ github.event.inputs.password }}"
 
@@ -63,7 +70,9 @@ jobs:
         id: tag-info
         run: |
           TAG="${{ github.event.inputs.tag }}"
+          BRANCH="${{ github.event.inputs.branch }}"
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
+          echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
           echo "is_latest=false" >> $GITHUB_OUTPUT
           if [ "$TAG" == "latest" ]; then
             echo "is_latest=true" >> $GITHUB_OUTPUT
@@ -78,6 +87,7 @@ jobs:
           echo "=== Debug Info ==="
           echo "Image name: ${IMAGE_NAME}"
           echo "Tag: ${TAG}"
+          echo "Branch: ${{ steps.tag-info.outputs.branch }}"
           
           echo ""
           echo "=== All local Docker images ==="
@@ -123,7 +133,9 @@ jobs:
       - name: Summary
         run: |
           TAG="${{ github.event.inputs.tag }}"
+          BRANCH="${{ github.event.inputs.branch }}"
           echo "Docker image built and pushed successfully!"
+          echo "Branch: ${BRANCH}"
           echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${TAG}"
           if [ "$TAG" != "latest" ]; then
             echo "Release created at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
