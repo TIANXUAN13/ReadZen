@@ -313,6 +313,30 @@
                             @keyup.enter="doLogin"
                             :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
                         />
+                        <!-- 验证码输入 -->
+                        <div class="flex gap-2 mb-4">
+                            <input 
+                                v-model="loginForm.captcha"
+                                type="text"
+                                placeholder="验证码"
+                                maxlength="4"
+                                @keyup.enter="doLogin"
+                                :class="['flex-1 px-3 py-2 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                            />
+                            <img 
+                                v-if="captchaImage"
+                                :src="captchaImage"
+                                @click="refreshCaptcha"
+                                class="w-24 h-10 rounded border cursor-pointer"
+                                :class="[backgroundColor === 'dark' ? 'border-gray-600' : 'border-gray-300']"
+                                title="点击刷新验证码"
+                            />
+                            <div v-else class="w-24 h-10 rounded border flex items-center justify-center" 
+                                :class="[backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300']">
+                                <div class="animate-spin rounded-full h-4 w-4 border-b-2" 
+                                    :class="[backgroundColor === 'dark' ? 'border-gray-400' : 'border-gray-600']"></div>
+                            </div>
+                        </div>
                         <button 
                             @click="doLogin"
                             :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
@@ -336,6 +360,30 @@
                             @keyup.enter="doRegister"
                             :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
                         />
+                        <!-- 验证码输入 -->
+                        <div class="flex gap-2 mb-4">
+                            <input 
+                                v-model="regForm.captcha"
+                                type="text"
+                                placeholder="验证码"
+                                maxlength="4"
+                                @keyup.enter="doRegister"
+                                :class="['flex-1 px-3 py-2 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                            />
+                            <img 
+                                v-if="captchaImage"
+                                :src="captchaImage"
+                                @click="refreshCaptcha"
+                                class="w-24 h-10 rounded border cursor-pointer"
+                                :class="[backgroundColor === 'dark' ? 'border-gray-600' : 'border-gray-300']"
+                                title="点击刷新验证码"
+                            />
+                            <div v-else class="w-24 h-10 rounded border flex items-center justify-center" 
+                                :class="[backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300']">
+                                <div class="animate-spin rounded-full h-4 w-4 border-b-2" 
+                                    :class="[backgroundColor === 'dark' ? 'border-gray-400' : 'border-gray-600']"></div>
+                            </div>
+                        </div>
                         <button 
                             @click="doRegister"
                             :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600']"
@@ -805,8 +853,28 @@
                 const user = ref(null);
                 const showAuth = ref(false);
                 const authMode = ref('login');
-                const loginForm = reactive({ username: '', password: '' });
-                const regForm = reactive({ username: '', password: '' });
+                const loginForm = reactive({ username: '', password: '', captcha: '' });
+                const regForm = reactive({ username: '', password: '', captcha: '' });
+                const captchaImage = ref('');
+                
+                // 获取验证码图片
+                const fetchCaptcha = async () => {
+                    try {
+                        const res = await fetch('/api/captcha', { credentials: 'include' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            captchaImage.value = 'data:image/png;base64,' + data.captcha_image;
+                        }
+                    } catch (e) {
+                        console.error('获取验证码失败:', e);
+                    }
+                };
+                
+                // 刷新验证码
+                const refreshCaptcha = () => {
+                    captchaImage.value = '';
+                    fetchCaptcha();
+                };
                 
                 // 检查当前登录用户
                 const checkCurrentUser = async () => {
@@ -824,8 +892,11 @@
                     authMode.value = mode;
                     loginForm.username = '';
                     loginForm.password = '';
+                    loginForm.captcha = '';
                     regForm.username = '';
                     regForm.password = '';
+                    regForm.captcha = '';
+                    fetchCaptcha();
                     showAuth.value = true;
                 };
                 
@@ -834,7 +905,11 @@
                     const resp = await fetch('/api/auth/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: loginForm.username, password: loginForm.password }),
+                        body: JSON.stringify({ 
+                            username: loginForm.username, 
+                            password: loginForm.password,
+                            captcha: loginForm.captcha 
+                        }),
                         credentials: 'include'
                     });
                     if (resp.ok) {
@@ -843,6 +918,9 @@
                     } else {
                         const err = await resp.json();
                         alert(err.error || '登录失败');
+                        if (err.error && err.error.includes('验证码')) {
+                            refreshCaptcha();
+                        }
                     }
                 };
                 
@@ -851,7 +929,11 @@
                     const resp = await fetch('/api/auth/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username: regForm.username, password: regForm.password }),
+                        body: JSON.stringify({ 
+                            username: regForm.username, 
+                            password: regForm.password,
+                            captcha: regForm.captcha 
+                        }),
                         credentials: 'include'
                     });
                     if (resp.ok) {
@@ -860,6 +942,9 @@
                     } else {
                         const err = await resp.json();
                         alert(err.error || '注册失败');
+                        if (err.error && err.error.includes('验证码')) {
+                            refreshCaptcha();
+                        }
                     }
                 };
                 
@@ -1545,15 +1630,18 @@
                       bgColors,
                       readingTime,
                       isViewingLocal,
-                      user,
-                      showAuth,
-                      authMode,
-                      loginForm,
-                      regForm,
-                      openAuth,
-                      doLogin,
-                       doRegister,
-                       doLogout,
+                       user,
+                       showAuth,
+                       authMode,
+                       loginForm,
+                       regForm,
+                       captchaImage,
+                       openAuth,
+                       doLogin,
+                        doRegister,
+                        doLogout,
+                        fetchCaptcha,
+                        refreshCaptcha,
                        allUsers,
                        loadingUsers,
                        loadAllUsers,

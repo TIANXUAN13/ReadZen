@@ -2,11 +2,16 @@ import os
 import sqlite3
 import requests
 import shutil  # 新增：用于文件复制
+import random
+import string
+import base64
+from io import BytesIO
 from functools import wraps
 from flask import Flask, request, jsonify, session, send_from_directory
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
+from captcha.image import ImageCaptcha  # 验证码图片生成
 
 # 导入数据库函数
 from database import (
@@ -19,6 +24,59 @@ app = Flask(__name__, static_folder='.')
 app.secret_key = os.environ.get('SECRET_KEY', 'super-secret-key')
 
 CORS(app, supports_credentials=True)
+
+# --- 验证码系统开始 ---
+
+# 验证码图片生成器
+captcha_generator = ImageCaptcha(width=120, height=40, fonts=['arial.ttf'])
+
+@app.route('/api/captcha', methods=['GET'])
+def get_captcha():
+    """生成并返回验证码图片"""
+    # 生成随机验证码
+    captcha_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    # 存储到会话中
+    session['captcha'] = captcha_code
+    session['captcha_time'] = datetime.now().timestamp()
+    
+    # 生成验证码图片
+    image = captcha_generator.generate(captcha_code)
+    image_data = image.getvalue()
+    
+    # 返回base64编码的图片
+    return jsonify({
+        'captcha_image': base64.b64encode(image_data).decode('utf-8'),
+        'expires_in': 300  # 5分钟有效期
+    })
+
+@app.route('/api/captcha/verify', methods=['POST'])
+def verify_captcha():
+    """验证验证码"""
+    data = request.json or {}
+    user_input = data.get('captcha', '').strip().upper()
+    session_captcha = session.get('captcha')
+    captcha_time = session.get('captcha_time', 0)
+    
+    # 检查验证码是否过期（5分钟）
+    if datetime.now().timestamp() - captcha_time > 300:
+        session.pop('captcha', None)
+        session.pop('captcha_time', None)
+        return jsonify({'valid': False, 'error': '验证码已过期'}), 400
+    
+    # 验证验证码
+    if not session_captcha:
+        return jsonify({'valid': False, 'error': '验证码不存在或已过期'}), 400
+    
+    if user_input != session_captcha:
+        return jsonify({'valid': False, 'error': '验证码错误'}), 400
+    
+    # 验证成功后清除验证码，防止重复使用
+    session.pop('captcha', None)
+    session.pop('captcha_time', None)
+    
+    return jsonify({'valid': True})
+
+# --- 验证码系统结束 ---
 
 # --- 核心修改开始 ---
 
@@ -38,8 +96,8 @@ def initialize_application():
             print(f"[INFO] Created data directory: {DATA_DIR}")
         except OSError as e:
             print(f"[ERROR] Failed to create data directory {DATA_DIR}. Permission denied? Error: {e}")
-            return
-
+            return  # 已处理错误，直接返回
+    
     # 2. 检查数据库文件是否存在
     if not os.path.exists(DB_PATH):
         print(f"[INFO] Database not found at {DB_PATH}")
@@ -113,10 +171,33 @@ def register():
     data = request.json or {}
     username = data.get('username')
     password = data.get('password')
+    captcha = data.get('captcha', '').strip().upper()
+    
     if not username or not password:
         return jsonify({'error': 'username和password是必填项'}), 400
+    
+    # 验证码验证
+    session_captcha = session.get('captcha')
+    captcha_time = session.get('captcha_time', 0)
+    
+    if not session_captcha:
+        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
+    
+    if datetime.now().timestamp() - captcha_time > 300:
+        session.pop('captcha', None)
+        session.pop('captcha_time', None)
+        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
+    
+    if captcha != session_captcha:
+        return jsonify({'error': '验证码错误'}), 400
+    
     if get_user_by_username(username):
         return jsonify({'error': 'user exists'}), 400
+    
+    # 验证成功后清除验证码，防止重复使用
+    session.pop('captcha', None)
+    session.pop('captcha_time', None)
+    
     user_id = create_user(username, password)
     session['user_id'] = user_id
     session['username'] = username
@@ -127,6 +208,27 @@ def login():
     data = request.json or {}
     username = data.get('username')
     password = data.get('password')
+    captcha = data.get('captcha', '').strip().upper()
+    
+    # 验证码验证（登录时也需要验证码，防止暴力破解）
+    session_captcha = session.get('captcha')
+    captcha_time = session.get('captcha_time', 0)
+    
+    if not session_captcha:
+        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
+    
+    if datetime.now().timestamp() - captcha_time > 300:
+        session.pop('captcha', None)
+        session.pop('captcha_time', None)
+        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
+    
+    if captcha != session_captcha:
+        return jsonify({'error': '验证码错误'}), 400
+    
+    # 验证成功后清除验证码，防止重复使用
+    session.pop('captcha', None)
+    session.pop('captcha_time', None)
+    
     ok, user_id = verify_user(username, password)
     if not ok:
         return jsonify({'error': 'invalid credentials'}), 401
@@ -194,6 +296,9 @@ def favorites():
             return jsonify({'error': 'id required'}), 400
         remove_favorite(user_id, int(fav_id))
         return jsonify({'deleted': int(fav_id)})
+    
+    # 不支持的方法
+    return jsonify({'error': 'method not allowed'}), 405
 
 # Daily article proxy
 @app.route('/api/daily', methods=['GET'])
