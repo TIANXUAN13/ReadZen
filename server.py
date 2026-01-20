@@ -5,9 +5,11 @@ import shutil  # 新增：用于文件复制
 import random
 import string
 import base64
+import zipfile
+import io
 from io import BytesIO
 from functools import wraps
-from flask import Flask, request, jsonify, session, send_from_directory
+from flask import Flask, request, jsonify, session, send_from_directory, send_file
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
@@ -17,7 +19,8 @@ from captcha.image import ImageCaptcha  # 验证码图片生成
 from database import (
     init_db, get_user_by_username, create_user, verify_user,
     get_favorites, add_favorite, remove_favorite,
-    get_all_users, delete_user
+    get_all_users, delete_user,
+    save_uploaded_article, get_uploaded_articles, delete_uploaded_article
 )
 
 app = Flask(__name__, static_folder='.')
@@ -300,23 +303,142 @@ def favorites():
     # 不支持的方法
     return jsonify({'error': 'method not allowed'}), 405
 
+
+# 上传文章相关API
+@app.route('/api/uploaded', methods=['GET'])
+def get_uploaded():
+    """获取所有上传的文章"""
+    articles = get_uploaded_articles()
+    return jsonify(articles)
+
+
+@app.route('/api/uploaded', methods=['POST'])
+def save_uploaded():
+    """保存上传的文章"""
+    data = request.json or {}
+    title = data.get('title')
+    author = data.get('author', '佚名')
+    content = data.get('content')
+    file_name = data.get('fileName', '')
+    file_size = data.get('fileSize', 0)
+    
+    if not title or not content:
+        return jsonify({'error': 'title和content是必填项'}), 400
+    
+    article_id = save_uploaded_article(title, author, content, file_name, file_size)
+    return jsonify({'id': article_id})
+
+
+@app.route('/api/uploaded/<int:article_id>', methods=['DELETE'])
+def delete_uploaded(article_id):
+    """删除上传的文章"""
+    delete_uploaded_article(article_id)
+    return jsonify({'deleted': article_id})
+
+
+# 收藏文章批量操作
+@app.route('/api/favorites/batch-add', methods=['POST'])
+def batch_add_favorites():
+    """批量添加收藏（用于一键收藏所有上传的文章）"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'unauthorized'}), 401
+    
+    data = request.json or {}
+    articles = data.get('articles', [])
+    
+    if not articles:
+        return jsonify({'error': 'articles required'}), 400
+    
+    user_id = session['user_id']
+    added_count = 0
+    
+    for article in articles:
+        try:
+            add_favorite(user_id, article)
+            added_count += 1
+        except:
+            continue
+    
+    return jsonify({'added': added_count})
+
+
+# 批量下载收藏文章
+@app.route('/api/favorites/download', methods=['POST'])
+def download_favorites_zip():
+    """批量下载收藏文章（返回zip文件）"""
+    if 'user_id' not in session:
+        return jsonify({'error': 'unauthorized'}), 401
+    
+    data = request.json or {}
+    articles = data.get('articles', [])
+    
+    if not articles:
+        return jsonify({'error': 'articles required'}), 400
+    
+    # 创建内存中的zip文件
+    memory_file = io.BytesIO()
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        for idx, article in enumerate(articles):
+            title = article.get('title', f'文章{idx+1}')
+            author = article.get('author', '')
+            content = article.get('content', '')
+            
+            # 清理文件名中的非法字符
+            safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-()')
+            if not safe_title:
+                safe_title = f'article_{idx+1}'
+            
+            file_name = f"{safe_title}.txt"
+            file_content = f"标题: {title}\n作者: {author}\n\n{content}"
+            zf.writestr(file_name, file_content)
+    
+    memory_file.seek(0)
+    
+    return send_file(
+        memory_file,
+        mimetype='application/zip',
+        as_attachment=True,
+        download_name='收藏文章.zip'
+    )
+
+
 # Daily article proxy
 @app.route('/api/daily', methods=['GET'])
 def daily():
-    try:
-        resp = requests.get('https://api.qhsou.com/api/one.php', timeout=5)
-        if not resp.ok:
-            return jsonify({'error': 'failed to fetch daily'}), 502
-        data = resp.json()
-        article = {
-            'id': data.get('id') or str(int.from_bytes(os.urandom(2), 'little')),
-            'title': data.get('title') or data.get('c_title') or '无标题',
-            'author': data.get('author') or data.get('c_author') or '未知',
-            'content': data.get('content') or data.get('c_content') or '<p>暂无内容</p>'
-        }
-        return jsonify(article)
-    except Exception as e:
-        return jsonify({'error': 'failed to fetch daily', 'detail': str(e)}), 502
+    """获取每日一文"""
+    # 备用API列表
+    api_urls = [
+        'https://api.qhsou.com/api/one.php',
+        'https://v2.api.aaabbb.cn/api/meiriyiwen.php'
+    ]
+    
+    article_data = None
+    
+    for api_url in api_urls:
+        try:
+            resp = requests.get(api_url, timeout=5)
+            if resp.ok:
+                data = resp.json()
+                # 尝试多种API返回格式
+                if isinstance(data, dict):
+                    article_data = {
+                        'id': data.get('id') or data.get('date') or str(int.from_bytes(os.urandom(2), 'little')),
+                        'title': data.get('title') or data.get('c_title') or data.get('tt') or '无标题',
+                        'author': data.get('author') or data.get('c_author') or data.get('author') or '未知',
+                        'content': data.get('content') or data.get('c_content') or data.get('text') or data.get('dc') or '<p>暂无内容</p>'
+                    }
+                    break
+        except Exception as e:
+            continue
+    
+    # 如果所有API都失败，返回错误
+    if not article_data:
+        return jsonify({
+            'error': 'failed to fetch daily',
+            'message': '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。'
+        }), 502
+    
+    return jsonify(article_data)
 
 # Admin APIs (only admin user can access)
 @app.route('/api/admin/users', methods=['GET'])

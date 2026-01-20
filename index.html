@@ -108,8 +108,8 @@
                                 </svg>
                                 <span>每日一文</span>
                             </button>
-                        </li>
-                        <li>
+                         </li>
+                         <li>
                             <button 
                                 @click="selectFolder"
                                 :class="[
@@ -120,14 +120,28 @@
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                                 </svg>
-                                <span>本地文章</span>
+                                <span>选择文件夹</span>
                                 <span 
                                     :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', badgeBgClass]"
                                 >
                                     {{ localArticles.length }}
                                 </span>
                              </button>
-                          </li>
+                           </li>
+                           <li>
+                            <button 
+                                @click="selectSingleFile"
+                                :class="[
+                                    'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                    hoverBgClass
+                                ]"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                                <span>选择文件</span>
+                             </button>
+                           </li>
                           <li>
                               <button
                                   @click="activeTab = 'favorites'; isSidebarCollapsed = true"
@@ -433,7 +447,7 @@
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-red-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        <p :style="{ color: bgColors[backgroundColor].text }" class="mb-4">获取文章失败，可能是由于跨域限制或网络问题。</p>
+                        <p :style="{ color: bgColors[backgroundColor].text }" class="mb-4 max-w-md">{{ error }}</p>
                         <button @click="getArticle" class="px-6 py-2 bg-gray-800 text-white text-sm rounded-lg hover:bg-gray-700 transition">重试</button>
                     </div>
 
@@ -477,48 +491,105 @@
                 <!-- 本地文章列表 -->
                 <div v-else-if="activeTab === 'downloads'" class="h-full overflow-y-auto p-6">
                     <div class="max-w-3xl mx-auto">
-                        <div v-if="localArticles.length === 0" class="text-center py-12">
+                        <!-- 上传的文章列表（从数据库） -->
+                        <div v-if="uploadedArticles.length > 0" class="mb-6">
+                            <div class="flex justify-between items-center mb-3">
+                                <h3 :class="['text-lg font-semibold', textClass]">上传的文章</h3>
+                                <button 
+                                    @click="addAllToFavorites"
+                                    :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white']"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                    </svg>
+                                    一键收藏全部
+                                </button>
+                            </div>
+                            <div class="space-y-3">
+                                <div 
+                                    v-for="item in uploadedArticles" 
+                                    :key="item.id"
+                                    @click="viewLocalArticle(item)"
+                                    :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
+                                >
+                                    <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                    <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex flex-col">
+                                            <span class="text-xs opacity-40">{{ item.file_name || '本地文件' }}</span>
+                                            <span class="text-xs opacity-40">{{ new Date(item.date_added).toLocaleDateString() }}</span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <button @click.stop="addToFavorites(item)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="收藏文章">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                </svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 本次选择的本地文件 -->
+                        <div v-if="localArticles.length > 0">
+                            <h3 :class="['text-lg font-semibold mb-3', textClass]">本次选择的文件</h3>
+                            <div class="space-y-3">
+                                <div 
+                                    v-for="(item, index) in localArticles" 
+                                    :key="item.id || index"
+                                    @click="viewLocalArticle(item)"
+                                    :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
+                                >
+                                    <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                    <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                    <div class="flex justify-between items-center">
+                                        <div class="flex flex-col">
+                                            <span class="text-xs opacity-40">{{ item.fileName }}</span>
+                                            <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
+                                        </div>
+                                        <button @click.stop="downloadLocalArticle(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div v-if="localArticles.length === 0 && uploadedArticles.length === 0" class="text-center py-12">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
                             </svg>
                             <p class="text-lg opacity-60">暂无本地文章</p>
-                            <p class="text-sm opacity-40 mt-2">点击左侧菜单中的"本地文章"按钮选择文件夹</p>
-                        </div>
-                        <div v-else class="space-y-4">
-                            <div 
-                                v-for="(item, index) in localArticles" 
-                                :key="item.id || index"
-                                @click="viewLocalArticle(item)"
-                                :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
-                            >
-                                <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
-                                <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
-                                <div class="flex justify-between items-center">
-                                    <div class="flex flex-col">
-                                        <span class="text-xs opacity-40">{{ item.fileName }}</span>
-                                        <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
-                                    </div>
-                                    <button @click.stop="downloadLocalArticle(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                        </svg>
-                                    </button>
-                                </div>
-                            </div>
+                            <p class="text-sm opacity-40 mt-2">点击左侧菜单中的"选择文件夹"或"选择文件"按钮上传文章</p>
                         </div>
                     </div>
                  </div>
 
-                  <!-- 收藏文章列表 -->
-                  <div v-else-if="activeTab === 'favorites'" class="h-full overflow-y-auto p-6">
-                      <div class="max-w-3xl mx-auto">
-                          <div v-if="favoriteArticles.length === 0" class="text-center py-12">
-                              <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                              </svg>
-                              <p class="text-lg opacity-60">暂无收藏文章</p>
-                              <p class="text-sm opacity-40 mt-2">阅读文章时点击心形图标收藏</p>
-                          </div>
+                   <!-- 收藏文章列表 -->
+                   <div v-else-if="activeTab === 'favorites'" class="h-full overflow-y-auto p-6">
+                       <div class="max-w-3xl mx-auto">
+                           <!-- 批量操作按钮 -->
+                           <div v-if="favoriteArticles.length > 0" class="mb-4 flex justify-end">
+                               <button 
+                                   @click="downloadFavoritesZip"
+                                   :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                               >
+                                   <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                   </svg>
+                                   批量下载全部
+                               </button>
+                           </div>
+                           <div v-if="favoriteArticles.length === 0" class="text-center py-12">
+                               <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                               </svg>
+                               <p class="text-lg opacity-60">暂无收藏文章</p>
+                               <p class="text-sm opacity-40 mt-2">阅读文章时点击心形图标收藏</p>
+                           </div>
                           <div v-else class="space-y-4">
                               <div
                                   v-for="(item, index) in favoriteArticles"
@@ -849,6 +920,178 @@
                 // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
                 const isViewingLocal = ref(false);
                 
+                // 上传的文章列表（从数据库获取）
+                const uploadedArticles = ref([]);
+                
+                // 获取上传的文章列表
+                const loadUploadedArticles = async () => {
+                    try {
+                        const res = await fetch('/api/uploaded', { credentials: 'include' });
+                        if (res.ok) {
+                            uploadedArticles.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('获取上传文章失败:', e);
+                    }
+                };
+                
+                // 保存上传的文章到数据库
+                const saveUploadedArticle = async (article) => {
+                    try {
+                        const res = await fetch('/api/uploaded', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(article),
+                            credentials: 'include'
+                        });
+                        return res.ok;
+                    } catch (e) {
+                        console.error('保存上传文章失败:', e);
+                        return false;
+                    }
+                };
+                
+                // 删除上传的文章
+                const deleteUploadedArticle = async (articleId) => {
+                    try {
+                        const res = await fetch(`/api/uploaded/${articleId}`, {
+                            method: 'DELETE',
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            uploadedArticles.value = uploadedArticles.value.filter(a => a.id !== articleId);
+                        }
+                    } catch (e) {
+                        console.error('删除上传文章失败:', e);
+                    }
+                };
+                
+                // 收藏单个文章
+                const addToFavorites = async (article) => {
+                    if (!user.value) {
+                        alert('请先登录后再收藏文章');
+                        return false;
+                    }
+                    
+                    // 检查是否已收藏（通过标题和作者判断）
+                    const isAlreadyFavorited = favoriteArticles.value.some(
+                        fav => fav.title === article.title && fav.author === article.author
+                    );
+                    if (isAlreadyFavorited) {
+                        alert('该文章已加入收藏');
+                        return false;
+                    }
+                    
+                    try {
+                        const res = await fetch('/api/favorites', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(article),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            favoriteArticles.value.unshift({
+                                ...article,
+                                id: data.id,
+                                dateAdded: new Date().toISOString()
+                            });
+                            return true;
+                        }
+                        return false;
+                    } catch (e) {
+                        console.error('收藏文章失败:', e);
+                        return false;
+                    }
+                };
+                
+                // 一键收藏所有上传的文章
+                const addAllToFavorites = async () => {
+                    if (!user.value) {
+                        alert('请先登录后再收藏文章');
+                        return;
+                    }
+                    if (uploadedArticles.value.length === 0) {
+                        alert('没有可收藏的文章');
+                        return;
+                    }
+                    
+                    // 过滤掉已收藏的文章
+                    const newArticles = uploadedArticles.value.filter(article => {
+                        return !favoriteArticles.value.some(
+                            fav => fav.title === article.title && fav.author === article.author
+                        );
+                    });
+                    
+                    if (newArticles.length === 0) {
+                        alert('所有文章都已收藏过了');
+                        return;
+                    }
+                    
+                    try {
+                        const res = await fetch('/api/favorites/batch-add', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ articles: newArticles }),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            alert(`成功收藏 ${data.added} 篇文章`);
+                            // 刷新收藏列表
+                            loadFavorites();
+                        }
+                    } catch (e) {
+                        console.error('批量收藏失败:', e);
+                        alert('收藏失败，请重试');
+                    }
+                };
+                
+                // 批量下载收藏文章
+                const downloadFavoritesZip = async () => {
+                    if (favoriteArticles.value.length === 0) {
+                        alert('没有可下载的收藏文章');
+                        return;
+                    }
+                    
+                    try {
+                        const res = await fetch('/api/favorites/download', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ articles: favoriteArticles.value }),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            // 获取文件名并下载
+                            const blob = await res.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = '收藏文章.zip';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                        }
+                    } catch (e) {
+                        console.error('下载失败:', e);
+                        alert('下载失败，请重试');
+                    }
+                };
+                
+                // 加载收藏列表
+                const loadFavorites = async () => {
+                    try {
+                        const res = await fetch('/api/favorites', { credentials: 'include' });
+                        if (res.ok) {
+                            favoriteArticles.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('加载收藏失败:', e);
+                    }
+                };
+                
+                
                 // 认证相关状态
                 const user = ref(null);
                 const showAuth = ref(false);
@@ -956,6 +1199,8 @@
                 
                 // 初始检查用户
                 checkCurrentUser();
+                loadUploadedArticles();
+                loadFavorites();
 
                 // 背景色配置
                 const bgColors = {
@@ -1005,37 +1250,26 @@
                     });
                     
                     try {
-                        // 1. 尝试直接请求
-                        // 注意：如果遇到跨域(CORS)错误，请参考下面的代理方案
-                        const apiUrl = 'https://api.qhsou.com/api/one.php';
-                        
-                        // 2. 如果你在本地直接打开HTML遇到跨域错误，可以使用 cors-anywhere 等代理
-                        // const apiUrl = 'https://cors-anywhere.herokuapp.com/https://api.qhsou.com/api/one.php'; 
-                        
-                        const response = await fetch(apiUrl);
+                        // 使用后端代理接口获取文章，避免跨域问题
+                        const response = await fetch('/api/daily', { credentials: 'include' });
                         
                         if (!response.ok) {
                             throw new Error('网络请求失败');
                         }
 
                         const data = await response.json();
-
-                        // 简单的根据返回结构处理数据
-                        // 假设API返回结构包含 title, author, content
-                        // 有些API返回的 content 带有 HTML 标签，有些没有，这里做个简单清洗
-                        const newArticle = {
-                            id: Date.now().toString(36) + Math.random().toString(36).substr(2),
-                            title: data.title || data.c_title || '无标题',
-                            author: data.author || data.c_author || '未知',
-                            content: data.content || data.c_content || '<p>暂无内容</p>'
-                        };
                         
-                        article.value = newArticle;
-                        currentDailyArticle.value = newArticle;
-
+                        // 检查是否是错误响应
+                        if (data.error) {
+                            throw new Error(data.message || '获取文章失败');
+                        }
+                        
+                        // 更新文章数据
+                        article.value = data;
+                        currentDailyArticle.value = data;
                     } catch (err) {
                         console.error(err);
-                        error.value = '获取文章失败，可能是由于跨域限制或网络问题。';
+                        error.value = data?.message || '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。';
                     } finally {
                         loading.value = false;
                     }
@@ -1096,6 +1330,27 @@
                     input.type = 'file';
                     input.webkitdirectory = true;
                     input.multiple = true;
+                    input.accept = '.txt,.md,.text,.log,.article,.htm,.html,text/*';
+
+                    input.onchange = (e) => {
+                        const files = e.target.files;
+                        console.log('Selected files:', files.length);
+                        if (files.length === 0) {
+                            alert('未选择任何文件');
+                            return;
+                        }
+                        readLocalFiles(Array.from(files));
+                        activeTab.value = 'downloads';
+                    };
+
+                    input.click();
+                };
+
+                // 选择单个文件
+                const selectSingleFile = () => {
+                    const input = document.createElement('input');
+                    input.type = 'file';
+                    input.multiple = false;
                     input.accept = '.txt,.md,.text,.log,.article,.htm,.html,text/*';
 
                     input.onchange = (e) => {
@@ -1209,6 +1464,15 @@
                                     fileName: file.name,
                                     fileSize: file.size,
                                     lastModified: file.lastModified
+                                });
+
+                                // 同时保存到数据库
+                                saveUploadedArticle({
+                                    title,
+                                    author,
+                                    content: htmlContent,
+                                    fileName: file.name,
+                                    fileSize: file.size
                                 });
 
                                 loadedCount++;
@@ -1438,29 +1702,12 @@
 
                 // 移除收藏
                 const removeFavorite = async (id) => {
-                    const fav = favoriteArticles.value.find(f => f.id === id);
-                    if (fav && fav.fav_id) {
-                        await fetch(`/api/favorites?id=${fav.fav_id}`, { method: 'DELETE', credentials: 'include' });
-                    }
+                    // 调用 API 删除数据库中的记录
+                    await fetch(`/api/favorites?id=${id}`, { method: 'DELETE', credentials: 'include' });
+                    // 从本地列表移除
                     favoriteArticles.value = favoriteArticles.value.filter(fav => fav.id !== id);
                 };
-
-                // 从服务器加载收藏列表
-                const loadFavorites = async () => {
-                    if (!user.value) {
-                        favoriteArticles.value = [];
-                        return;
-                    }
-                    try {
-                        const res = await fetch('/api/favorites', { credentials: 'include' });
-                        if (res.ok) {
-                            favoriteArticles.value = await res.json();
-                        }
-                    } catch (e) {
-                        console.error('加载收藏失败:', e);
-                    }
-                };
-
+                
                 // 用户管理相关
                 const allUsers = ref([]);
                 const loadingUsers = ref(false);
@@ -1620,14 +1867,21 @@
                     badgeBgClass,
                     navActiveClass,
                     localArticles,
-                      favoriteArticles,
-                      toggleFavorite,
-                       isFavorited,
-                       removeFavorite,
-                       downloadFavorite,
-                       downloadLocalArticle,
-                       loadFavorites,
-                      bgColors,
+                        favoriteArticles,
+                       toggleFavorite,
+                        isFavorited,
+                        removeFavorite,
+                        downloadFavorite,
+                        downloadLocalArticle,
+                        loadFavorites,
+                        uploadedArticles,
+                        loadUploadedArticles,
+                        addToFavorites,
+                        addAllToFavorites,
+                        downloadFavoritesZip,
+                        saveUploadedArticle,
+                        deleteUploadedArticle,
+                       bgColors,
                       readingTime,
                       isViewingLocal,
                        user,
@@ -1656,11 +1910,12 @@
                        getArticle,
                         adjustFontSize,
                         toggleSettings,
-                        handleSettingsBackdropClick,
-                        viewLocalArticle,
-                       selectFolder,
-                       isSidebarCollapsed,
-                       handleArticleScroll
+                         handleSettingsBackdropClick,
+                         viewLocalArticle,
+                        selectFolder,
+                        selectSingleFile,
+                        isSidebarCollapsed,
+                        handleArticleScroll
                 };
             }
         }).mount('#app');
