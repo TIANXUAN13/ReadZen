@@ -1043,20 +1043,24 @@
                  };
 
                  // 保存上传的文章到数据库
-                const saveUploadedArticle = async (article) => {
-                    try {
-                        const res = await fetch('/api/uploaded', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(article),
-                            credentials: 'include'
-                        });
-                        return res.ok;
-                    } catch (e) {
-                        console.error('保存上传文章失败:', e);
-                        return false;
-                    }
-                };
+                 const saveUploadedArticle = async (article) => {
+                     try {
+                         const res = await fetch('/api/uploaded', {
+                             method: 'POST',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify(article),
+                             credentials: 'include'
+                         });
+                         if (res.ok) {
+                             const data = await res.json();
+                             return data.id;
+                         }
+                         return null;
+                     } catch (e) {
+                         console.error('保存上传文章失败:', e);
+                         return null;
+                     }
+                 };
                 
                  // 删除上传的文章
                  const deleteUploadedArticle = async (articleId) => {
@@ -1621,10 +1625,17 @@
                                     fileSize: file.size
                                 });
 
-                                loadedCount++;
-                                if (loadedCount === validFilesCount) {
-                                    console.log(`成功加载 ${localArticles.value.length} 篇文章`);
-                                }
+                                 loadedCount++;
+                                 if (loadedCount === validFilesCount) {
+                                     console.log(`成功加载 ${localArticles.value.length} 篇文章`);
+                                     // 所有文件处理完成后，刷新上传列表并跳转
+                                     setTimeout(async () => {
+                                         await loadUploadedArticles();
+                                         // 跳转到上传列表页
+                                         activeTab.value = 'upload-list';
+                                         isSidebarCollapsed.value = true;
+                                     }, 500);
+                                 }
                             };
                             reader.onerror = (e) => {
                                 console.error('Error reading file:', file.name, e);
