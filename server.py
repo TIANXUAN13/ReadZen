@@ -12,9 +12,13 @@ from datetime import datetime
 from database import (
     init_db, get_user_by_username, create_user, verify_user,
     get_favorites, add_favorite, remove_favorite,
-    get_all_users, delete_user
+    get_all_users, delete_user,
+    DATA_DIR, DB_PATH
 )
 
+PRELOADED_DB_PATH = '/app/preloaded_data/data.db'
+
+# Docker容器中的预置数据目录路径（仅在容器中有效）
 app = Flask(__name__, static_folder='.')
 app.secret_key = os.environ.get('SECRET_KEY', 'super-secret-key')
 
@@ -22,12 +26,7 @@ CORS(app, supports_credentials=True)
 
 # --- 核心修改开始 ---
 
-# 定义数据目录（这是挂载出来的目录）
-DATA_DIR = os.environ.get('DATA_DIR', '/app/data')
-DB_PATH = os.path.join(DATA_DIR, 'data.db')
 
-# 定义预置数据目录（这是镜像里原本存放数据的目录，不映射）
-PRELOADED_DB_PATH = '/app/preloaded_data/data.db'
 
 def initialize_application():
     """初始化应用数据逻辑"""
@@ -43,7 +42,6 @@ def initialize_application():
     # 2. 检查数据库文件是否存在
     if not os.path.exists(DB_PATH):
         print(f"[INFO] Database not found at {DB_PATH}")
-        
         # 3. 策略：如果镜像里有预置数据，先复制过来
         if os.path.exists(PRELOADED_DB_PATH):
             try:
@@ -77,7 +75,6 @@ def create_admin_user():
         # 注意：这里需要临时修改 database.py 里的 DB_PATH 或者确保 database.py 引用的是正确的全局路径
         # 由于 database.py 里的路径可能是硬编码或导入时确定的，建议在 database.py 里也做相应调整
         # 这里假设 database.py 会读取环境变量或者我们不需要修改它（如果它每次都读文件）
-        
         # 为了保险，我们重新初始化一下 database 模块里的路径（如果那是动态的）
         # 但通常 init_db() 里的逻辑依赖 database.py 的实现。
         # 简单调用 get_user_by_username 即可，如果报错说明表结构不对，再次 init_db
@@ -235,6 +232,6 @@ def admin_delete_user(user_id):
     return jsonify({'deleted': user_id})
 
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 15000))
     host = os.environ.get('HOST', '0.0.0.0')
     app.run(host=host, port=port, debug=True)
