@@ -51,7 +51,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/ReadZen
           tags: |
             type=raw,value=${{ github.event.inputs.tag || 'latest' }}
 
@@ -61,7 +61,7 @@ jobs:
           context: .
           push: true
           load: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${{ github.event.inputs.tag || 'latest' }}
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/ReadZen:${{ github.event.inputs.tag || 'latest' }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ADMIN_PASSWORD=${{ github.event.inputs.password || 'admin123' }}
@@ -78,10 +78,10 @@ jobs:
             echo "is_latest=true" >> $GITHUB_OUTPUT
           fi
 
-      - name: Create Release Asset
+        - name: Create Release Asset
         if: steps.tag-info.outputs.is_latest != 'true'
         run: |
-          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader"
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/ReadZen"
           TAG="${{ steps.tag-info.outputs.tag }}"
           
           echo "=== Debug Info ==="
@@ -99,20 +99,20 @@ jobs:
             echo ""
             echo "=== Found image ID ==="
             echo "Image ID: ${IMAGE_ID}"
-            docker save ${IMAGE_ID} -o daily-article-reader.tar
+            docker save ${IMAGE_ID} -o ReadZen.tar
           else
             echo ""
             echo "=== No images found, trying by name ==="
-            docker save ${IMAGE_NAME}:${TAG} -o daily-article-reader.tar 2>&1 || echo "Failed to save image"
+            docker save ${IMAGE_NAME}:${TAG} -o ReadZen.tar 2>&1 || echo "Failed to save image"
           fi
           
-          if [ -f daily-article-reader.tar ]; then
+          if [ -f ReadZen.tar ]; then
             echo ""
             echo "=== Creating checksum ==="
-            sha256sum daily-article-reader.tar > daily-article-reader.tar.sha256
-            ls -la daily-article-reader.tar
+            sha256sum ReadZen.tar > ReadZen.tar.sha256
+            ls -la ReadZen.tar
           else
-            echo "ERROR: daily-article-reader.tar was not created!"
+            echo "ERROR: ReadZen.tar was not created!"
           fi
 
       - name: Upload Release Asset
@@ -125,18 +125,18 @@ jobs:
           prerelease: false
           generate_release_notes: true
           files: |
-            daily-article-reader.tar
-            daily-article-reader.tar.sha256
+            ReadZen.tar
+            ReadZen.tar.sha256
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Summary
+        - name: Summary
         run: |
           TAG="${{ github.event.inputs.tag }}"
           BRANCH="${{ github.event.inputs.branch }}"
           echo "Docker image built and pushed successfully!"
           echo "Branch: ${BRANCH}"
-          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/daily-article-reader:${TAG}"
+          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/ReadZen:${TAG}"
           if [ "$TAG" != "latest" ]; then
             echo "Release created at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
           fi
