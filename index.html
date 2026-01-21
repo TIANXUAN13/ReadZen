@@ -95,53 +95,106 @@
                 <!-- 导航菜单 -->
                 <nav class="flex-1">
                     <ul class="space-y-2">
-                        <li>
-                            <button 
-                                @click="activeTab = 'daily'; isSidebarCollapsed = true"
-                                :class="[
-                                    'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                    activeTab === 'daily' ? navActiveClass : hoverBgClass
-                                ]"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span>每日一文</span>
-                            </button>
-                         </li>
                          <li>
-                            <button 
-                                @click="selectFolder"
-                                :class="[
-                                    'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                    activeTab === 'downloads' ? navActiveClass : hoverBgClass
-                                ]"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                                </svg>
-                                <span>选择文件夹</span>
-                                <span 
-                                    :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', badgeBgClass]"
-                                >
-                                    {{ localArticles.length }}
-                                </span>
+                             <button 
+                                 @click="activeTab = 'daily'; isSidebarCollapsed = true"
+                                 :class="[
+                                     'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                     activeTab === 'daily' ? navActiveClass : hoverBgClass
+                                 ]"
+                             >
+                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                 </svg>
+                                 <span>每日一文</span>
                              </button>
-                           </li>
-                           <li>
-                            <button 
-                                @click="selectSingleFile"
-                                :class="[
-                                    'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                    hoverBgClass
-                                ]"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                </svg>
-                                <span>选择文件</span>
-                             </button>
-                           </li>
+                          </li>
+
+                          <!-- 上传中心（可展开菜单） -->
+                          <li>
+                             <div>
+                                 <button 
+                                     @click="toggleUploadMenu"
+                                     :class="[
+                                         'flex items-center justify-between w-full px-4 py-3 rounded-lg transition-all',
+                                         (activeTab === 'upload-file' || activeTab === 'upload-folder' || activeTab === 'upload-list') ? navActiveClass : hoverBgClass
+                                     ]"
+                                 >
+                                     <div class="flex items-center gap-3">
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                         </svg>
+                                         <span>上传中心</span>
+                                     </div>
+                                     <svg 
+                                         xmlns="http://www.w3.org/2000/svg" 
+                                         :class="['h-4 w-4 transition-transform duration-200', isUploadMenuOpen ? 'rotate-180' : '']" 
+                                         fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                                     >
+                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                                     </svg>
+                                 </button>
+
+                                 <!-- 子菜单 -->
+                                 <ul v-show="isUploadMenuOpen" class="mt-1 space-y-1 ml-8">
+                                     <li>
+                                         <button 
+                                             @click="handleUploadOption('upload-file')"
+                                             :class="[
+                                                 'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
+                                                 activeTab === 'upload-file' 
+                                                     ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
+                                                     : (backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600')
+                                             ]"
+                                         >
+                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                             </svg>
+                                             <span>上传文件</span>
+                                         </button>
+                                     </li>
+                                     <li>
+                                         <button 
+                                             @click="handleUploadOption('upload-folder')"
+                                             :class="[
+                                                 'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
+                                                 activeTab === 'upload-folder'
+                                                     ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
+                                                     : (backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600')
+                                             ]"
+                                         >
+                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                                             </svg>
+                                             <span>上传文件夹</span>
+                                         </button>
+                                     </li>
+                                     <li>
+                                         <button 
+                                             @click="handleUploadOption('upload-list')"
+                                             :class="[
+                                                 'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
+                                                 activeTab === 'upload-list'
+                                                     ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
+                                                     : (backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600')
+                                             ]"
+                                         >
+                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                                             </svg>
+                                             <span>上传列表</span>
+                                             <span 
+                                                 v-if="uploadedArticles.length > 0"
+                                                 :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-blue-200 text-blue-700']"
+                                             >
+                                                 {{ uploadedArticles.length }}
+                                             </span>
+                                         </button>
+                                     </li>
+                                 </ul>
+                             </div>
+                          </li>
+
                           <li>
                               <button
                                   @click="activeTab = 'favorites'; isSidebarCollapsed = true"
@@ -207,7 +260,7 @@
                     </button>
                     
                     <h2 class="text-lg font-semibold" :style="{ color: textClass }">
-                        {{ activeTab === 'daily' ? '每日一文' : (activeTab === 'favorites' ? '收藏文章' : (activeTab === 'admin' ? '用户管理' : '本地文章')) }}
+                        {{ getPageTitle() }}
                     </h2>
                 </div>
                 <div class="flex items-center gap-2">
@@ -488,85 +541,106 @@
                     </article>
                 </div>
 
-                <!-- 本地文章列表 -->
-                <div v-else-if="activeTab === 'downloads'" class="h-full overflow-y-auto p-6">
-                    <div class="max-w-3xl mx-auto">
-                        <!-- 上传的文章列表（从数据库） -->
-                        <div v-if="uploadedArticles.length > 0" class="mb-6">
-                            <div class="flex justify-between items-center mb-3">
-                                <h3 :class="['text-lg font-semibold', textClass]">上传的文章</h3>
-                                <button 
-                                    @click="addAllToFavorites"
-                                    :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white']"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                    </svg>
-                                    一键收藏全部
-                                </button>
-                            </div>
-                            <div class="space-y-3">
-                                <div 
-                                    v-for="item in uploadedArticles" 
-                                    :key="item.id"
-                                    @click="viewLocalArticle(item)"
-                                    :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
-                                >
-                                    <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
-                                    <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
-                                    <div class="flex justify-between items-center">
-                                        <div class="flex flex-col">
-                                            <span class="text-xs opacity-40">{{ item.file_name || '本地文件' }}</span>
-                                            <span class="text-xs opacity-40">{{ new Date(item.date_added).toLocaleDateString() }}</span>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <button @click.stop="addToFavorites(item)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="收藏文章">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                                </svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 本次选择的本地文件 -->
-                        <div v-if="localArticles.length > 0">
-                            <h3 :class="['text-lg font-semibold mb-3', textClass]">本次选择的文件</h3>
-                            <div class="space-y-3">
-                                <div 
-                                    v-for="(item, index) in localArticles" 
-                                    :key="item.id || index"
-                                    @click="viewLocalArticle(item)"
-                                    :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
-                                >
-                                    <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
-                                    <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
-                                    <div class="flex justify-between items-center">
-                                        <div class="flex flex-col">
-                                            <span class="text-xs opacity-40">{{ item.fileName }}</span>
-                                            <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
-                                        </div>
-                                        <button @click.stop="downloadLocalArticle(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
-                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div v-if="localArticles.length === 0 && uploadedArticles.length === 0" class="text-center py-12">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                            </svg>
-                            <p class="text-lg opacity-60">暂无本地文章</p>
-                            <p class="text-sm opacity-40 mt-2">点击左侧菜单中的"选择文件夹"或"选择文件"按钮上传文章</p>
-                        </div>
-                    </div>
-                 </div>
+                 <!-- 上传列表 -->
+                 <div v-else-if="activeTab === 'upload-list'" class="h-full overflow-y-auto p-6">
+                     <div class="max-w-3xl mx-auto">
+                         <!-- 上传的文章列表（从数据库） -->
+                         <div v-if="uploadedArticles.length > 0" class="mb-6">
+                             <div class="flex justify-between items-center mb-3">
+                                 <h3 :class="['text-lg font-semibold', textClass]">上传的文章</h3>
+                                 <div class="flex gap-2">
+                                     <button 
+                                         @click="downloadUploadedZip"
+                                         :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                     >
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                         </svg>
+                                         批量下载
+                                     </button>
+                                     <button 
+                                         @click="addAllToFavorites"
+                                         :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-green-500 hover:bg-green-600 text-white']"
+                                     >
+                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                         </svg>
+                                         一键收藏全部
+                                     </button>
+                                 </div>
+                             </div>
+                             <div class="space-y-3">
+                                 <div 
+                                     v-for="item in uploadedArticles" 
+                                     :key="item.id"
+                                     @click="viewLocalArticle(item)"
+                                     :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
+                                 >
+                                     <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                     <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                     <div class="flex justify-between items-center">
+                                         <div class="flex flex-col">
+                                             <span class="text-xs opacity-40">{{ item.file_name || '本地文件' }}</span>
+                                             <span class="text-xs opacity-40">{{ new Date(item.date_added).toLocaleDateString() }}</span>
+                                         </div>
+                                         <div class="flex items-center gap-2">
+                                             <button @click.stop="addToFavorites(item)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="收藏文章">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                                 </svg>
+                                             </button>
+                                             <button @click.stop="downloadUploadedArticle(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                                 </svg>
+                                             </button>
+                                             <button @click.stop="deleteUploadedArticle(item.id)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="删除文章">
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                 </svg>
+                                             </button>
+                                         </div>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <!-- 本次选择的本地文件 -->
+                         <div v-if="localArticles.length > 0">
+                             <h3 :class="['text-lg font-semibold mb-3', textClass]">本次选择的文件</h3>
+                             <div class="space-y-3">
+                                 <div 
+                                     v-for="(item, index) in localArticles" 
+                                     :key="item.id || index"
+                                     @click="viewLocalArticle(item)"
+                                     :class="['p-4 rounded-xl shadow-sm transition-all cursor-pointer', cardBgClass + ' ' + borderClass]"
+                                 >
+                                     <h3 class="text-lg font-semibold mb-1">{{ item.title }}</h3>
+                                     <p class="text-sm opacity-60 mb-2">{{ item.author || '佚名' }}</p>
+                                     <div class="flex justify-between items-center">
+                                         <div class="flex flex-col">
+                                             <span class="text-xs opacity-40">{{ item.fileName }}</span>
+                                             <span class="text-xs opacity-40">{{ (item.fileSize / 1024).toFixed(1) }}KB</span>
+                                         </div>
+                                         <button @click.stop="downloadLocalArticle(item)" class="text-blue-500 hover:text-blue-700 p-1 rounded transition-colors" title="下载文章">
+                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                             </svg>
+                                         </button>
+                                     </div>
+                                 </div>
+                             </div>
+                         </div>
+
+                         <div v-if="localArticles.length === 0 && uploadedArticles.length === 0" class="text-center py-12">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                             </svg>
+                             <p class="text-lg opacity-60">暂无上传的文章</p>
+                             <p class="text-sm opacity-40 mt-2">点击"上传文件"或"上传文件夹"按钮上传文章</p>
+                         </div>
+                     </div>
+                  </div>
 
                    <!-- 收藏文章列表 -->
                    <div v-else-if="activeTab === 'favorites'" class="h-full overflow-y-auto p-6">
@@ -886,56 +960,89 @@
 
         createApp({
             setup() { 
-                const article = ref(null);
-                const loading = ref(true);
-                const error = ref(null);
-                const currentDate = ref('');
-                const fontSize = ref(18);
-                const showSettings = ref(false);
-                const settingsPosition = ref({ top: 0, left: 0 });
-                const settingsButtonRef = ref(null);
-                const activeTab = ref('daily');
-                // 背景色选项：paper（默认纸张色）, white（纯白）, dark（黑色）
-                const backgroundColor = ref('paper');
+                 const article = ref(null);
+                 const loading = ref(true);
+                 const error = ref(null);
+                 const currentDate = ref('');
+                 const fontSize = ref(18);
+                 const showSettings = ref(false);
+                 const settingsPosition = ref({ top: 0, left: 0 });
+                 const settingsButtonRef = ref(null);
+                 const activeTab = ref('daily');
+                 const isUploadMenuOpen = ref(false);
+                 // 背景色选项：paper（默认纸张色）, white（纯白）, dark（黑色）
+                 const backgroundColor = ref('paper');
+
+                 // 简化样式计算属性
+                 const isDark = computed(() => backgroundColor.value === 'dark');
+                 const bgClass = computed(() => isDark.value ? 'bg-gray-900' : 'bg-white');
+                 const textClass = computed(() => isDark.value ? 'text-gray-100' : 'text-gray-800');
+                 const borderClass = computed(() => isDark.value ? 'border-gray-700' : 'border-gray-200');
+                 const hoverBgClass = computed(() => isDark.value ? 'hover:bg-gray-800' : 'hover:bg-gray-100');
+                 const cardBgClass = computed(() => isDark.value ? 'bg-gray-800' : 'bg-white');
+                 const badgeBgClass = computed(() => isDark.value ? 'bg-gray-700' : 'bg-blue-200');
+
+                 // 导航菜单激活状态样式
+                 const navActiveClass = computed(() => isDark.value ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800');
+
+                 // 本地文章列表
+                 const localArticles = ref([]);
+                 // 保存当前查看的每日一文，避免切换后重新请求
+                 const currentDailyArticle = ref(null);
+                 // 侧边栏展开/折叠状态
+                 const isSidebarCollapsed = ref(true);
+                 const favoriteArticles = ref([]);
+                 // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
+                 const isViewingLocal = ref(false);
+
+                 // 上传的文章列表（从数据库获取）
+                 const uploadedArticles = ref([]);
                 
-                // 简化样式计算属性
-                const isDark = computed(() => backgroundColor.value === 'dark');
-                const bgClass = computed(() => isDark.value ? 'bg-gray-900' : 'bg-white');
-                const textClass = computed(() => isDark.value ? 'text-gray-100' : 'text-gray-800');
-                const borderClass = computed(() => isDark.value ? 'border-gray-700' : 'border-gray-200');
-                const hoverBgClass = computed(() => isDark.value ? 'hover:bg-gray-800' : 'hover:bg-gray-100');
-                const cardBgClass = computed(() => isDark.value ? 'bg-gray-800' : 'bg-white');
-                const badgeBgClass = computed(() => isDark.value ? 'bg-gray-700' : 'bg-blue-200');
-                
-                // 导航菜单激活状态样式
-                const navActiveClass = computed(() => isDark.value ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800');
-                
-                // 本地文章列表
-                const localArticles = ref([]);
-                // 保存当前查看的每日一文，避免切换后重新请求
-                const currentDailyArticle = ref(null);
-                // 侧边栏展开/折叠状态
-                const isSidebarCollapsed = ref(true);
-                const favoriteArticles = ref([]);
-                // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
-                const isViewingLocal = ref(false);
-                
-                // 上传的文章列表（从数据库获取）
-                const uploadedArticles = ref([]);
-                
-                // 获取上传的文章列表
-                const loadUploadedArticles = async () => {
-                    try {
-                        const res = await fetch('/api/uploaded', { credentials: 'include' });
-                        if (res.ok) {
-                            uploadedArticles.value = await res.json();
-                        }
-                    } catch (e) {
-                        console.error('获取上传文章失败:', e);
-                    }
-                };
-                
-                // 保存上传的文章到数据库
+                 // 获取上传的文章列表
+                 const loadUploadedArticles = async () => {
+                     try {
+                         const res = await fetch('/api/uploaded', { credentials: 'include' });
+                         if (res.ok) {
+                             uploadedArticles.value = await res.json();
+                         }
+                     } catch (e) {
+                         console.error('获取上传文章失败:', e);
+                     }
+                 };
+
+                 // 切换上传菜单展开/折叠
+                 const toggleUploadMenu = () => {
+                     isUploadMenuOpen.value = !isUploadMenuOpen.value;
+                 };
+
+                 // 处理上传选项点击
+                 const handleUploadOption = (option) => {
+                     isUploadMenuOpen.value = false;
+
+                     if (option === 'upload-file') {
+                         selectSingleFile();
+                     } else if (option === 'upload-folder') {
+                         selectFolder();
+                     } else if (option === 'upload-list') {
+                         activeTab.value = 'upload-list';
+                         isSidebarCollapsed.value = true;
+                     }
+                 };
+
+                 // 获取页面标题
+                 const getPageTitle = () => {
+                     const titleMap = {
+                         'daily': '每日一文',
+                         'favorites': '收藏文章',
+                         'admin': '用户管理',
+                         'upload-file': '上传文件',
+                         'upload-folder': '上传文件夹',
+                         'upload-list': '上传列表'
+                     };
+                     return titleMap[activeTab.value] || '本地文章';
+                 };
+
+                 // 保存上传的文章到数据库
                 const saveUploadedArticle = async (article) => {
                     try {
                         const res = await fetch('/api/uploaded', {
@@ -951,22 +1058,61 @@
                     }
                 };
                 
-                // 删除上传的文章
-                const deleteUploadedArticle = async (articleId) => {
-                    try {
-                        const res = await fetch(`/api/uploaded/${articleId}`, {
-                            method: 'DELETE',
-                            credentials: 'include'
-                        });
-                        if (res.ok) {
-                            uploadedArticles.value = uploadedArticles.value.filter(a => a.id !== articleId);
-                        }
-                    } catch (e) {
-                        console.error('删除上传文章失败:', e);
+                 // 删除上传的文章
+                 const deleteUploadedArticle = async (articleId) => {
+                     try {
+                         const res = await fetch(`/api/uploaded/${articleId}`, {
+                             method: 'DELETE',
+                             credentials: 'include'
+                         });
+                         if (res.ok) {
+                             uploadedArticles.value = uploadedArticles.value.filter(a => a.id !== articleId);
+                         }
+                     } catch (e) {
+                         console.error('删除上传文章失败:', e);
+                     }
+                 };
+
+                 // 下载单个上传的文章
+                 const downloadUploadedArticle = (article) => {
+                     const blob = new Blob([article.content], { type: 'text/plain;charset=utf-8' });
+                     const url = window.URL.createObjectURL(blob);
+                     const a = document.createElement('a');
+                     a.href = url;
+                     a.download = (article.file_name || article.title) + '.txt';
+                     document.body.appendChild(a);
+                     a.click();
+                     document.body.removeChild(a);
+                     window.URL.revokeObjectURL(url);
+                 };
+
+                 // 批量下载上传的文章（ZIP）
+                 const downloadUploadedZip = async () => {
+                     if (uploadedArticles.value.length === 0) {
+                         alert('没有可下载的上传文章');
+                        return;
                     }
+
+                    const JSZip = (await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm')).default;
+                    const zip = new JSZip();
+
+                    uploadedArticles.value.forEach((article, index) => {
+                        const fileName = (article.file_name || article.title) + '.txt';
+                        zip.file(fileName, article.content);
+                    });
+
+                    const content = await zip.generateAsync({ type: 'blob' });
+                    const url = window.URL.createObjectURL(content);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = '上传文章.zip';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
                 };
-                
-                // 收藏单个文章
+
+                 // 收藏单个文章
                 const addToFavorites = async (article) => {
                     if (!user.value) {
                         alert('请先登录后再收藏文章');
@@ -1340,7 +1486,7 @@
                             return;
                         }
                         readLocalFiles(Array.from(files));
-                        activeTab.value = 'downloads';
+                        activeTab.value = 'upload-list';
                     };
 
                     input.click();
@@ -1361,7 +1507,7 @@
                             return;
                         }
                         readLocalFiles(Array.from(files));
-                        activeTab.value = 'downloads';
+                        activeTab.value = 'upload-list';
                     };
 
                     input.click();
@@ -1844,79 +1990,85 @@
                     }
                 });
 
-                return {
-                    article,
-                    loading,
-                    error,
-                    currentDate: computed(() => formatDate()),
-                    fontSize,
-                    showSettings,
-                    settingsPosition,
-                    settingsButtonRef,
-                    activeTab,
-                    openSidebar,
-                    isOpeningSidebar,
-                    closeSidebar,
-                    backgroundColor,
-                    isDark,
-                    bgClass,
-                    textClass,
-                    borderClass,
-                    hoverBgClass,
-                    cardBgClass,
-                    badgeBgClass,
-                    navActiveClass,
-                    localArticles,
-                        favoriteArticles,
-                       toggleFavorite,
-                        isFavorited,
-                        removeFavorite,
-                        downloadFavorite,
-                        downloadLocalArticle,
-                        loadFavorites,
-                        uploadedArticles,
-                        loadUploadedArticles,
-                        addToFavorites,
-                        addAllToFavorites,
-                        downloadFavoritesZip,
-                        saveUploadedArticle,
-                        deleteUploadedArticle,
-                       bgColors,
-                      readingTime,
-                      isViewingLocal,
-                       user,
-                       showAuth,
-                       authMode,
-                       loginForm,
-                       regForm,
-                       captchaImage,
-                       openAuth,
-                       doLogin,
-                        doRegister,
-                        doLogout,
-                        fetchCaptcha,
-                        refreshCaptcha,
-                       allUsers,
-                       loadingUsers,
-                       loadAllUsers,
-                       deleteUser,
-                       showChangePassword,
-                       changePasswordForm,
-                       changePasswordError,
-                       changePasswordLoading,
-                       openChangePassword,
-                       doChangePassword,
-                       formatDate,
-                       getArticle,
-                        adjustFontSize,
-                        toggleSettings,
-                         handleSettingsBackdropClick,
-                         viewLocalArticle,
-                        selectFolder,
-                        selectSingleFile,
-                        isSidebarCollapsed,
-                        handleArticleScroll
-                };
+                 return {
+                     article,
+                     loading,
+                     error,
+                     currentDate: computed(() => formatDate()),
+                     fontSize,
+                     showSettings,
+                     settingsPosition,
+                     settingsButtonRef,
+                     activeTab,
+                     isUploadMenuOpen,
+                     openSidebar,
+                     isOpeningSidebar,
+                     closeSidebar,
+                     backgroundColor,
+                     isDark,
+                     bgClass,
+                     textClass,
+                     borderClass,
+                     hoverBgClass,
+                     cardBgClass,
+                     badgeBgClass,
+                     navActiveClass,
+                     localArticles,
+                         favoriteArticles,
+                        toggleFavorite,
+                         isFavorited,
+                         removeFavorite,
+                         downloadFavorite,
+                         downloadLocalArticle,
+                         loadFavorites,
+                         uploadedArticles,
+                         loadUploadedArticles,
+                         addToFavorites,
+                         addAllToFavorites,
+                         downloadFavoritesZip,
+                         saveUploadedArticle,
+                         deleteUploadedArticle,
+                         downloadUploadedArticle,
+                         downloadUploadedZip,
+                         toggleUploadMenu,
+                         handleUploadOption,
+                         getPageTitle,
+                        bgColors,
+                       readingTime,
+                       isViewingLocal,
+                        user,
+                        showAuth,
+                        authMode,
+                        loginForm,
+                        regForm,
+                        captchaImage,
+                        openAuth,
+                        doLogin,
+                         doRegister,
+                         doLogout,
+                         fetchCaptcha,
+                         refreshCaptcha,
+                        allUsers,
+                        loadingUsers,
+                        loadAllUsers,
+                        deleteUser,
+                        showChangePassword,
+                        changePasswordForm,
+                        changePasswordError,
+                        changePasswordLoading,
+                        openChangePassword,
+                        doChangePassword,
+                        formatDate,
+                        getArticle,
+                         adjustFontSize,
+                         toggleSettings,
+                          handleSettingsBackdropClick,
+                          viewLocalArticle,
+                         selectFolder,
+                         selectSingleFile,
+                         isSidebarCollapsed,
+                         handleArticleScroll
+                 };
             }
         }).mount('#app');
         </script>
