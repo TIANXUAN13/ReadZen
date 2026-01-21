@@ -3,7 +3,7 @@ import os
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # 使用与 server.py 相同的数据目录
-DATA_DIR = os.environ.get('DATA_DIR', '/app/data')
+DATA_DIR = os.environ.get('DATA_DIR', './data')
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, 'data.db')
 
