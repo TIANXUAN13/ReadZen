@@ -17,75 +17,89 @@ from captcha.image import ImageCaptcha  # 验证码图片生成
 
 # 导入数据库函数
 from database import (
-    init_db, get_user_by_username, create_user, verify_user,
-    get_favorites, add_favorite, remove_favorite,
-    get_all_users, delete_user,
-    DATA_DIR, DB_PATH
+    init_db,
+    get_user_by_username,
+    create_user,
+    verify_user,
+    get_favorites,
+    add_favorite,
+    remove_favorite,
+    get_all_users,
+    delete_user,
+    get_uploaded_articles,
+    save_uploaded_article,
+    delete_uploaded_article,
+    DATA_DIR,
+    DB_PATH,
 )
 
-PRELOADED_DB_PATH = '/app/preloaded_data/data.db'
+PRELOADED_DB_PATH = "/app/preloaded_data/data.db"
 
 # Docker容器中的预置数据目录路径（仅在容器中有效）
-app = Flask(__name__, static_folder='.')
-app.secret_key = os.environ.get('SECRET_KEY', 'super-secret-key')
+app = Flask(__name__, static_folder=".")
+app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key")
 
 CORS(app, supports_credentials=True)
 
 # --- 验证码系统开始 ---
 
 # 验证码图片生成器
-captcha_generator = ImageCaptcha(width=120, height=40, fonts=['arial.ttf'])
+captcha_generator = ImageCaptcha(width=120, height=40)
 
-@app.route('/api/captcha', methods=['GET'])
+
+@app.route("/api/captcha", methods=["GET"])
 def get_captcha():
     """生成并返回验证码图片"""
     # 生成随机验证码
-    captcha_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=4))
+    captcha_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
     # 存储到会话中
-    session['captcha'] = captcha_code
-    session['captcha_time'] = datetime.now().timestamp()
-    
+    session["captcha"] = captcha_code
+    session["captcha_time"] = datetime.now().timestamp()
+
     # 生成验证码图片
     image = captcha_generator.generate(captcha_code)
     image_data = image.getvalue()
-    
-    # 返回base64编码的图片
-    return jsonify({
-        'captcha_image': base64.b64encode(image_data).decode('utf-8'),
-        'expires_in': 300  # 5分钟有效期
-    })
 
-@app.route('/api/captcha/verify', methods=['POST'])
+    # 返回base64编码的图片
+    return jsonify(
+        {
+            "captcha_image": base64.b64encode(image_data).decode("utf-8"),
+            "expires_in": 300,  # 5分钟有效期
+        }
+    )
+
+
+@app.route("/api/captcha/verify", methods=["POST"])
 def verify_captcha():
     """验证验证码"""
     data = request.json or {}
-    user_input = data.get('captcha', '').strip().upper()
-    session_captcha = session.get('captcha')
-    captcha_time = session.get('captcha_time', 0)
-    
+    user_input = data.get("captcha", "").strip().upper()
+    session_captcha = session.get("captcha")
+    captcha_time = session.get("captcha_time", 0)
+
     # 检查验证码是否过期（5分钟）
     if datetime.now().timestamp() - captcha_time > 300:
-        session.pop('captcha', None)
-        session.pop('captcha_time', None)
-        return jsonify({'valid': False, 'error': '验证码已过期'}), 400
-    
+        session.pop("captcha", None)
+        session.pop("captcha_time", None)
+        return jsonify({"valid": False, "error": "验证码已过期"}), 400
+
     # 验证验证码
     if not session_captcha:
-        return jsonify({'valid': False, 'error': '验证码不存在或已过期'}), 400
-    
+        return jsonify({"valid": False, "error": "验证码不存在或已过期"}), 400
+
     if user_input != session_captcha:
-        return jsonify({'valid': False, 'error': '验证码错误'}), 400
-    
+        return jsonify({"valid": False, "error": "验证码错误"}), 400
+
     # 验证成功后清除验证码，防止重复使用
-    session.pop('captcha', None)
-    session.pop('captcha_time', None)
-    
-    return jsonify({'valid': True})
+    session.pop("captcha", None)
+    session.pop("captcha_time", None)
+
+    return jsonify({"valid": True})
+
 
 # --- 验证码系统结束 ---
 
 # --- 核心修改开始 ---
-
 
 
 def initialize_application():
@@ -96,9 +110,11 @@ def initialize_application():
             os.makedirs(DATA_DIR, mode=0o775, exist_ok=True)
             print(f"[INFO] Created data directory: {DATA_DIR}")
         except OSError as e:
-            print(f"[ERROR] Failed to create data directory {DATA_DIR}. Permission denied? Error: {e}")
+            print(
+                f"[ERROR] Failed to create data directory {DATA_DIR}. Permission denied? Error: {e}"
+            )
             return  # 已处理错误，直接返回
-    
+
     # 2. 检查数据库文件是否存在
     if not os.path.exists(DB_PATH):
         print(f"[INFO] Database not found at {DB_PATH}")
@@ -128,6 +144,7 @@ def initialize_application():
     # 5. 确保 admin 用户存在 (无论数据库是复制的还是新建的)
     create_admin_user()
 
+
 def create_admin_user():
     """启动时检查并创建 admin 用户"""
     try:
@@ -139,19 +156,20 @@ def create_admin_user():
         # 但通常 init_db() 里的逻辑依赖 database.py 的实现。
         # 简单调用 get_user_by_username 即可，如果报错说明表结构不对，再次 init_db
         try:
-            admin_user = get_user_by_username('admin')
+            admin_user = get_user_by_username("admin")
         except sqlite3.OperationalError:
             # 如果表不存在（比如复制的文件损坏），重新建表
             init_db()
-            admin_user = get_user_by_username('admin')
+            admin_user = get_user_by_username("admin")
 
         if not admin_user:
-            admin_password = os.environ.get('ADMIN_PASSWORD', 'admin123')
+            admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
             if admin_password:
-                create_user('admin', admin_password)
+                create_user("admin", admin_password)
                 print(f"[INFO] Admin user created with password: {admin_password}")
     except Exception as e:
         print(f"[WARNING] Failed to check/create admin user: {e}")
+
 
 # 执行初始化
 with app.app_context():
@@ -159,257 +177,265 @@ with app.app_context():
 
 # --- 核心修改结束 ---
 
+
 # Scheme A: Root path serves frontend index.html
-@app.route('/', methods=['GET'])
+@app.route("/", methods=["GET"])
 def index():
-    return send_from_directory('.', 'index.html')
+    return send_from_directory(".", "index.html")
+
 
 # Authentication APIs
-@app.route('/api/auth/register', methods=['POST'])
+@app.route("/api/auth/register", methods=["POST"])
 def register():
     data = request.json or {}
-    username = data.get('username')
-    password = data.get('password')
-    captcha = data.get('captcha', '').strip().upper()
-    
-    if not username or not password:
-        return jsonify({'error': 'username和password是必填项'}), 400
-    
-    # 验证码验证
-    session_captcha = session.get('captcha')
-    captcha_time = session.get('captcha_time', 0)
-    
-    if not session_captcha:
-        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
-    
-    if datetime.now().timestamp() - captcha_time > 300:
-        session.pop('captcha', None)
-        session.pop('captcha_time', None)
-        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
-    
-    if captcha != session_captcha:
-        return jsonify({'error': '验证码错误'}), 400
-    
-    if get_user_by_username(username):
-        return jsonify({'error': 'user exists'}), 400
-    
-    # 验证成功后清除验证码，防止重复使用
-    session.pop('captcha', None)
-    session.pop('captcha_time', None)
-    
-    user_id = create_user(username, password)
-    session['user_id'] = user_id
-    session['username'] = username
-    return jsonify({'id': user_id, 'username': username})
+    username = data.get("username")
+    password = data.get("password")
+    captcha = data.get("captcha", "").strip().upper()
 
-@app.route('/api/auth/login', methods=['POST'])
+    if not username or not password:
+        return jsonify({"error": "username和password是必填项"}), 400
+
+    # 验证码验证
+    session_captcha = session.get("captcha")
+    captcha_time = session.get("captcha_time", 0)
+
+    if not session_captcha:
+        return jsonify({"error": "验证码已过期，请刷新后重试"}), 400
+
+    if datetime.now().timestamp() - captcha_time > 300:
+        session.pop("captcha", None)
+        session.pop("captcha_time", None)
+        return jsonify({"error": "验证码已过期，请刷新后重试"}), 400
+
+    if captcha != session_captcha:
+        return jsonify({"error": "验证码错误"}), 400
+
+    if get_user_by_username(username):
+        return jsonify({"error": "user exists"}), 400
+
+    # 验证成功后清除验证码，防止重复使用
+    session.pop("captcha", None)
+    session.pop("captcha_time", None)
+
+    user_id = create_user(username, password)
+    session["user_id"] = user_id
+    session["username"] = username
+    return jsonify({"id": user_id, "username": username})
+
+
+@app.route("/api/auth/login", methods=["POST"])
 def login():
     data = request.json or {}
-    username = data.get('username')
-    password = data.get('password')
-    captcha = data.get('captcha', '').strip().upper()
-    
+    username = data.get("username")
+    password = data.get("password")
+    captcha = data.get("captcha", "").strip().upper()
+
     # 验证码验证（登录时也需要验证码，防止暴力破解）
-    session_captcha = session.get('captcha')
-    captcha_time = session.get('captcha_time', 0)
-    
+    session_captcha = session.get("captcha")
+    captcha_time = session.get("captcha_time", 0)
+
     if not session_captcha:
-        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
-    
+        return jsonify({"error": "验证码已过期，请刷新后重试"}), 400
+
     if datetime.now().timestamp() - captcha_time > 300:
-        session.pop('captcha', None)
-        session.pop('captcha_time', None)
-        return jsonify({'error': '验证码已过期，请刷新后重试'}), 400
-    
+        session.pop("captcha", None)
+        session.pop("captcha_time", None)
+        return jsonify({"error": "验证码已过期，请刷新后重试"}), 400
+
     if captcha != session_captcha:
-        return jsonify({'error': '验证码错误'}), 400
-    
+        return jsonify({"error": "验证码错误"}), 400
+
     # 验证成功后清除验证码，防止重复使用
-    session.pop('captcha', None)
-    session.pop('captcha_time', None)
-    
+    session.pop("captcha", None)
+    session.pop("captcha_time", None)
+
     ok, user_id = verify_user(username, password)
     if not ok:
-        return jsonify({'error': 'invalid credentials'}), 401
-    session['user_id'] = user_id
-    session['username'] = username
-    return jsonify({'id': user_id, 'username': username})
+        return jsonify({"error": "invalid credentials"}), 401
+    session["user_id"] = user_id
+    session["username"] = username
+    return jsonify({"id": user_id, "username": username})
 
-@app.route('/api/auth/me', methods=['GET'])
+
+@app.route("/api/auth/me", methods=["GET"])
 def me():
-    if 'user_id' in session:
-        return jsonify({'id': session['user_id'], 'username': session.get('username')})
-    return jsonify({'error': 'not logged in'}), 401
+    if "user_id" in session:
+        return jsonify({"id": session["user_id"], "username": session.get("username")})
+    return jsonify({"error": "not logged in"}), 401
 
-@app.route('/api/auth/logout', methods=['POST'])
+
+@app.route("/api/auth/logout", methods=["POST"])
 def logout():
     session.clear()
-    return jsonify({'ok': True})
+    return jsonify({"ok": True})
 
-@app.route('/api/auth/change-password', methods=['POST'])
+
+@app.route("/api/auth/change-password", methods=["POST"])
 def change_password():
-    if 'user_id' not in session:
-        return jsonify({'error': 'unauthorized'}), 401
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     data = request.json or {}
-    old_password = data.get('old_password')
-    new_password = data.get('new_password')
+    old_password = data.get("old_password")
+    new_password = data.get("new_password")
     if not old_password or not new_password:
-        return jsonify({'error': 'old_password and new_password are required'}), 400
-    user_id = session['user_id']
-    user = get_user_by_username(session['username'])
-    if not user or not check_password_hash(user['password'], old_password):
-        return jsonify({'error': 'invalid old password'}), 401
+        return jsonify({"error": "old_password and new_password are required"}), 400
+    user_id = session["user_id"]
+    user = get_user_by_username(session["username"])
+    if not user or not check_password_hash(user["password"], old_password):
+        return jsonify({"error": "invalid old password"}), 401
     from werkzeug.security import generate_password_hash
+
     hashed = generate_password_hash(new_password)
     # 确保这里连接的是正确的 DB_PATH
     conn = sqlite3.connect(DB_PATH)
-    conn.execute('UPDATE users SET password = ? WHERE id = ?', (hashed, user_id))
+    conn.execute("UPDATE users SET password = ? WHERE id = ?", (hashed, user_id))
     conn.commit()
     conn.close()
-    return jsonify({'ok': True})
+    return jsonify({"ok": True})
+
 
 # Favorites CRUD (SQLite-backed)
-@app.route('/api/favorites', methods=['GET', 'POST', 'DELETE'])
+@app.route("/api/favorites", methods=["GET", "POST", "DELETE"])
 def favorites():
-    if request.method == 'GET':
-        if 'user_id' not in session:
-            return jsonify({'error': 'unauthorized'}), 401
-        user_id = session['user_id']
+    if request.method == "GET":
+        if "user_id" not in session:
+            return jsonify({"error": "unauthorized"}), 401
+        user_id = session["user_id"]
         items = get_favorites(user_id)
         return jsonify(items)
 
-    if request.method == 'POST':
-        if 'user_id' not in session:
-            return jsonify({'error': 'unauthorized'}), 401
-        user_id = session['user_id']
+    if request.method == "POST":
+        if "user_id" not in session:
+            return jsonify({"error": "unauthorized"}), 401
+        user_id = session["user_id"]
         article = request.json or {}
         fid = add_favorite(user_id, article)
-        return jsonify({'id': fid})
+        return jsonify({"id": fid})
 
-    if request.method == 'DELETE':
-        if 'user_id' not in session:
-            return jsonify({'error': 'unauthorized'}), 401
-        user_id = session['user_id']
-        fav_id = request.args.get('id')
+    if request.method == "DELETE":
+        if "user_id" not in session:
+            return jsonify({"error": "unauthorized"}), 401
+        user_id = session["user_id"]
+        fav_id = request.args.get("id")
         if not fav_id:
-            return jsonify({'error': 'id required'}), 400
+            return jsonify({"error": "id required"}), 400
         remove_favorite(user_id, int(fav_id))
-        return jsonify({'deleted': int(fav_id)})
-    
+        return jsonify({"deleted": int(fav_id)})
+
     # 不支持的方法
-    return jsonify({'error': 'method not allowed'}), 405
+    return jsonify({"error": "method not allowed"}), 405
 
 
 # 上传文章相关API
-@app.route('/api/uploaded', methods=['GET'])
+@app.route("/api/uploaded", methods=["GET"])
 def get_uploaded():
     """获取所有上传的文章"""
     articles = get_uploaded_articles()
     return jsonify(articles)
 
 
-@app.route('/api/uploaded', methods=['POST'])
+@app.route("/api/uploaded", methods=["POST"])
 def save_uploaded():
     """保存上传的文章"""
     data = request.json or {}
-    title = data.get('title')
-    author = data.get('author', '佚名')
-    content = data.get('content')
-    file_name = data.get('fileName', '')
-    file_size = data.get('fileSize', 0)
-    
+    title = data.get("title")
+    author = data.get("author", "佚名")
+    content = data.get("content")
+    file_name = data.get("fileName", "")
+    file_size = data.get("fileSize", 0)
+
     if not title or not content:
-        return jsonify({'error': 'title和content是必填项'}), 400
-    
+        return jsonify({"error": "title和content是必填项"}), 400
+
     article_id = save_uploaded_article(title, author, content, file_name, file_size)
-    return jsonify({'id': article_id})
+    return jsonify({"id": article_id})
 
 
-@app.route('/api/uploaded/<int:article_id>', methods=['DELETE'])
+@app.route("/api/uploaded/<int:article_id>", methods=["DELETE"])
 def delete_uploaded(article_id):
     """删除上传的文章"""
     delete_uploaded_article(article_id)
-    return jsonify({'deleted': article_id})
+    return jsonify({"deleted": article_id})
 
 
 # 收藏文章批量操作
-@app.route('/api/favorites/batch-add', methods=['POST'])
+@app.route("/api/favorites/batch-add", methods=["POST"])
 def batch_add_favorites():
     """批量添加收藏（用于一键收藏所有上传的文章）"""
-    if 'user_id' not in session:
-        return jsonify({'error': 'unauthorized'}), 401
-    
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
     data = request.json or {}
-    articles = data.get('articles', [])
-    
+    articles = data.get("articles", [])
+
     if not articles:
-        return jsonify({'error': 'articles required'}), 400
-    
-    user_id = session['user_id']
+        return jsonify({"error": "articles required"}), 400
+
+    user_id = session["user_id"]
     added_count = 0
-    
+
     for article in articles:
         try:
             add_favorite(user_id, article)
             added_count += 1
         except:
             continue
-    
-    return jsonify({'added': added_count})
+
+    return jsonify({"added": added_count})
 
 
 # 批量下载收藏文章
-@app.route('/api/favorites/download', methods=['POST'])
+@app.route("/api/favorites/download", methods=["POST"])
 def download_favorites_zip():
     """批量下载收藏文章（返回zip文件）"""
-    if 'user_id' not in session:
-        return jsonify({'error': 'unauthorized'}), 401
-    
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
     data = request.json or {}
-    articles = data.get('articles', [])
-    
+    articles = data.get("articles", [])
+
     if not articles:
-        return jsonify({'error': 'articles required'}), 400
-    
+        return jsonify({"error": "articles required"}), 400
+
     # 创建内存中的zip文件
     memory_file = io.BytesIO()
-    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+    with zipfile.ZipFile(memory_file, "w", zipfile.ZIP_DEFLATED) as zf:
         for idx, article in enumerate(articles):
-            title = article.get('title', f'文章{idx+1}')
-            author = article.get('author', '')
-            content = article.get('content', '')
-            
+            title = article.get("title", f"文章{idx + 1}")
+            author = article.get("author", "")
+            content = article.get("content", "")
+
             # 清理文件名中的非法字符
-            safe_title = ''.join(c for c in title if c.isalnum() or c in ' _-()')
+            safe_title = "".join(c for c in title if c.isalnum() or c in " _-()")
             if not safe_title:
-                safe_title = f'article_{idx+1}'
-            
+                safe_title = f"article_{idx + 1}"
+
             file_name = f"{safe_title}.txt"
             file_content = f"标题: {title}\n作者: {author}\n\n{content}"
             zf.writestr(file_name, file_content)
-    
+
     memory_file.seek(0)
-    
+
     return send_file(
         memory_file,
-        mimetype='application/zip',
+        mimetype="application/zip",
         as_attachment=True,
-        download_name='收藏文章.zip'
+        download_name="收藏文章.zip",
     )
 
 
 # Daily article proxy
-@app.route('/api/daily', methods=['GET'])
+@app.route("/api/daily", methods=["GET"])
 def daily():
     """获取每日一文"""
     # 备用API列表
     api_urls = [
-        'https://api.qhsou.com/api/one.php',
-        'https://v2.api.aaabbb.cn/api/meiriyiwen.php'
+        "https://api.qhsou.com/api/one.php",
+        "https://v2.api.aaabbb.cn/api/meiriyiwen.php",
     ]
-    
+
     article_data = None
-    
+
     for api_url in api_urls:
         try:
             resp = requests.get(api_url, timeout=5)
@@ -418,46 +444,63 @@ def daily():
                 # 尝试多种API返回格式
                 if isinstance(data, dict):
                     article_data = {
-                        'id': data.get('id') or data.get('date') or str(int.from_bytes(os.urandom(2), 'little')),
-                        'title': data.get('title') or data.get('c_title') or data.get('tt') or '无标题',
-                        'author': data.get('author') or data.get('c_author') or data.get('author') or '未知',
-                        'content': data.get('content') or data.get('c_content') or data.get('text') or data.get('dc') or '<p>暂无内容</p>'
+                        "id": data.get("id")
+                        or data.get("date")
+                        or str(int.from_bytes(os.urandom(2), "little")),
+                        "title": data.get("title")
+                        or data.get("c_title")
+                        or data.get("tt")
+                        or "无标题",
+                        "author": data.get("author")
+                        or data.get("c_author")
+                        or data.get("author")
+                        or "未知",
+                        "content": data.get("content")
+                        or data.get("c_content")
+                        or data.get("text")
+                        or data.get("dc")
+                        or "<p>暂无内容</p>",
                     }
                     break
         except Exception as e:
             continue
-    
+
     # 如果所有API都失败，返回错误
     if not article_data:
-        return jsonify({
-            'error': 'failed to fetch daily',
-            'message': '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。'
-        }), 502
-    
+        return jsonify(
+            {
+                "error": "failed to fetch daily",
+                "message": '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。',
+            }
+        ), 502
+
     return jsonify(article_data)
 
+
 # Admin APIs (only admin user can access)
-@app.route('/api/admin/users', methods=['GET'])
+@app.route("/api/admin/users", methods=["GET"])
 def admin_users():
-    if 'user_id' not in session:
-        return jsonify({'error': 'unauthorized'}), 401
-    if session.get('username') != 'admin':
-        return jsonify({'error': 'forbidden'}), 403
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
     users = get_all_users()
     return jsonify(users)
 
-@app.route('/api/admin/users/<int:user_id>', methods=['DELETE'])
-def admin_delete_user(user_id):
-    if 'user_id' not in session:
-        return jsonify({'error': 'unauthorized'}), 401
-    if session.get('username') != 'admin':
-        return jsonify({'error': 'forbidden'}), 403
-    if user_id == session['user_id']:
-        return jsonify({'error': 'cannot delete yourself'}), 400
-    delete_user(user_id)
-    return jsonify({'deleted': user_id})
 
-if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 15000))
-    host = os.environ.get('HOST', '0.0.0.0')
+@app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])
+def admin_delete_user(user_id):
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    if user_id == session["user_id"]:
+        return jsonify({"error": "cannot delete yourself"}), 400
+    delete_user(user_id)
+    return jsonify({"deleted": user_id})
+
+
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 15000))
+    host = os.environ.get("HOST", "0.0.0.0")
     app.run(host=host, port=port, debug=True)
