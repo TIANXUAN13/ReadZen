@@ -130,7 +130,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Summary
+      - name: Summary
         run: |
           TAG="${{ github.event.inputs.tag }}"
           BRANCH="${{ github.event.inputs.branch }}"
