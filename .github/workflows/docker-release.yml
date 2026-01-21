@@ -12,7 +12,7 @@ on:
         required: false
         default: 'latest'
       password:
-        description: 'Admin password for the Docker image'
+        description: 'Admin password for Docker image'
         required: false
         default: 'admin123'
 
@@ -78,22 +78,22 @@ jobs:
             echo "is_latest=true" >> $GITHUB_OUTPUT
           fi
 
-        - name: Create Release Asset
+      - name: Create Release Asset
         if: steps.tag-info.outputs.is_latest != 'true'
         run: |
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/ReadZen"
           TAG="${{ steps.tag-info.outputs.tag }}"
-          
+
           echo "=== Debug Info ==="
           echo "Image name: ${IMAGE_NAME}"
           echo "Tag: ${TAG}"
           echo "Branch: ${{ steps.tag-info.outputs.branch }}"
-          
+
           echo ""
           echo "=== All local Docker images ==="
           docker images --format "table {{.Repository}}:{{.Tag}}\t{{.ID}}\t{{.Size}}" | head -20
-          
-          # Find the first available image
+
+          # Find first available image
           IMAGE_ID=$(docker images --format "{{.ID}}" | head -1)
           if [ -n "$IMAGE_ID" ]; then
             echo ""
@@ -105,7 +105,7 @@ jobs:
             echo "=== No images found, trying by name ==="
             docker save ${IMAGE_NAME}:${TAG} -o ReadZen.tar 2>&1 || echo "Failed to save image"
           fi
-          
+
           if [ -f ReadZen.tar ]; then
             echo ""
             echo "=== Creating checksum ==="
