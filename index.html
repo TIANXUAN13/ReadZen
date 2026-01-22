@@ -968,8 +968,8 @@
                  const showSettings = ref(false);
                  const settingsPosition = ref({ top: 0, left: 0 });
                  const settingsButtonRef = ref(null);
-                 const activeTab = ref('daily');
-                 const isUploadMenuOpen = ref(false);
+                 const activeTab = ref(localStorage.getItem('readzen_active_tab') || 'daily');
+                 const isUploadMenuOpen = ref(localStorage.getItem('readzen_upload_menu_open') === 'true');
                  // 背景色选项：paper（默认纸张色）, white（纯白）, dark（黑色）
                  const backgroundColor = ref('paper');
 
@@ -998,6 +998,21 @@
                  // 上传的文章列表（从数据库获取）
                  const uploadedArticles = ref([]);
                 
+                 // 监听标签页切换，保存到 localStorage
+                 watch(activeTab, (newTab) => {
+                     localStorage.setItem('readzen_active_tab', newTab);
+                     
+                     // 如果切换到上传相关的标签，自动展开上传菜单
+                     if (['upload-file', 'upload-folder', 'upload-list'].includes(newTab)) {
+                         isUploadMenuOpen.value = true;
+                     }
+                 });
+
+                 // 监听上传菜单展开状态
+                 watch(isUploadMenuOpen, (isOpen) => {
+                     localStorage.setItem('readzen_upload_menu_open', isOpen);
+                 });
+
                  // 获取上传的文章列表
                  const loadUploadedArticles = async () => {
                      try {
@@ -1983,23 +1998,34 @@
                     }
                 });
 
-                // 当用户登录后加载收藏
-                watch(() => user.value, (newUser) => {
-                    if (newUser) {
-                        loadFavorites();
-                    } else {
-                        favoriteArticles.value = [];
-                    }
-                }, { immediate: true });
+                 // 当用户登录状态变化时
+                 watch(() => user.value, (newUser) => {
+                     if (newUser) {
+                         loadFavorites();
+                         // 如果当前就在用户管理页面，登录后自动加载列表
+                         if (activeTab.value === 'admin') {
+                             loadAllUsers();
+                         }
+                     } else {
+                         favoriteArticles.value = [];
+                         allUsers.value = [];
+                     }
+                 }, { immediate: true });
 
-                onMounted(() => {
-                    initData();
-                    getArticle();
-                    checkCurrentUser();
-                    if (user.value) {
-                        loadFavorites();
-                    }
-                });
+                 onMounted(async () => {
+                     initData();
+                     
+                     // 1. 先检查用户信息
+                     // 这会触发 watch(() => user.value)，进而根据当前 activeTab 加载 收藏 或 用户列表
+                     await checkCurrentUser();
+                     
+                     // 2. 对于非用户依赖的页面，手动触发加载
+                     if (activeTab.value === 'daily') {
+                         getArticle();
+                     } else if (activeTab.value === 'upload-list') {
+                         loadUploadedArticles();
+                     }
+                 });
 
                  return {
                      article,
