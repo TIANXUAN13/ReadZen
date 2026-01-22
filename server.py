@@ -116,18 +116,46 @@ def initialize_application():
             return  # 已处理错误，直接返回
 
     # 2. 检查数据库文件是否存在
-    if not os.path.exists(DB_PATH):
-        print(f"[INFO] Database not found at {DB_PATH}")
+    db_exists = os.path.exists(DB_PATH)
+    if db_exists:
+        # 数据库文件存在，检查是否可读（处理 bind mount 权限问题）
+        try:
+            # 尝试打开数据库验证其完整性
+            test_conn = sqlite3.connect(DB_PATH)
+            test_conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            test_conn.close()
+            print(f"[INFO] Valid database found at {DB_PATH}, skipping initialization.")
+        except sqlite3.Error as e:
+            # 数据库损坏或不可读，需要重新创建
+            print(f"[WARNING] Database at {DB_PATH} is corrupted or unreadable: {e}")
+            # 备份损坏的文件
+            backup_path = (
+                DB_PATH + f".corrupted.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+            try:
+                shutil.move(DB_PATH, backup_path)
+                print(f"[INFO] Backed up corrupted database to {backup_path}")
+            except Exception as backup_error:
+                print(f"[WARNING] Failed to backup database: {backup_error}")
+            db_exists = False
+        except PermissionError as e:
+            # 权限问题，尝试修复权限
+            print(f"[WARNING] Permission error accessing {DB_PATH}: {e}")
+            try:
+                os.chmod(DB_PATH, 0o666)
+                print(f"[INFO] Attempted to fix permissions on {DB_PATH}")
+            except Exception as perm_error:
+                print(f"[WARNING] Failed to fix permissions: {perm_error}")
+
+    if not db_exists:
+        print(f"[INFO] Database not found or invalid at {DB_PATH}")
         # 3. 策略：如果镜像里有预置数据，先复制过来
         if os.path.exists(PRELOADED_DB_PATH):
             try:
                 print(f"[INFO] Found preloaded data at {PRELOADED_DB_PATH}, copying...")
                 shutil.copy2(PRELOADED_DB_PATH, DB_PATH)
-                # 确保复制后的文件权限正确（尝试设置，失败则忽略）
-                try:
-                    os.chmod(DB_PATH, 0o664)
-                except:
-                    pass
+                # 确保复制后的文件权限正确
+                os.chmod(DB_PATH, 0o666)
                 print(f"[INFO] Database initialized from preloaded data.")
             except Exception as e:
                 print(f"[ERROR] Failed to copy preloaded data: {e}")
@@ -138,8 +166,6 @@ def initialize_application():
             # 4. 如果没有预置数据，直接初始化新的
             print("[INFO] No preloaded data found. Initializing new database...")
             init_db()
-    else:
-        print(f"[INFO] Database found at {DB_PATH}, skipping initialization.")
 
     # 5. 确保 admin 用户存在 (无论数据库是复制的还是新建的)
     create_admin_user()
