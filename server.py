@@ -373,6 +373,19 @@ def save_uploaded():
     if not title or not content:
         return jsonify({"error": "title和content是必填项"}), 400
 
+    # 重复校验：检查数据库中是否已存在相同标题和内容的文章
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute(
+        "SELECT id FROM uploaded_articles WHERE title = ? AND content = ?",
+        (title, content),
+    )
+    existing = cur.fetchone()
+    conn.close()
+
+    if existing:
+        return jsonify({"id": existing[0], "message": "文章已存在，跳过上传"}), 200
+
     article_id = save_uploaded_article(title, author, content, file_name, file_size)
     return jsonify({"id": article_id})
 

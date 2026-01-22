@@ -579,8 +579,14 @@
                                              <span class="text-xs opacity-40">{{ new Date(item.date_added).toLocaleDateString() }}</span>
                                          </div>
                                          <div class="flex items-center gap-2">
-                                             <button @click.stop="addToFavorites(item)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="收藏文章">
-                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                             <button @click.stop="addToFavorites(item)" 
+                                                 :class="[
+                                                     'p-1 rounded transition-colors',
+                                                     isItemFavorited(item) ? 'text-red-500' : 'text-gray-400 hover:text-red-500'
+                                                 ]" 
+                                                 :title="isItemFavorited(item) ? '已收藏' : '收藏文章'"
+                                             >
+                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" :fill="isItemFavorited(item) ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
                                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                                  </svg>
                                              </button>
@@ -1139,43 +1145,56 @@
                 };
 
                  // 收藏单个文章
-                const addToFavorites = async (article) => {
-                    if (!user.value) {
-                        alert('请先登录后再收藏文章');
-                        return false;
-                    }
-                    
-                    // 检查是否已收藏（通过标题和作者判断）
-                    const isAlreadyFavorited = favoriteArticles.value.some(
-                        fav => fav.title === article.title && fav.author === article.author
-                    );
-                    if (isAlreadyFavorited) {
-                        alert('该文章已加入收藏');
-                        return false;
-                    }
-                    
-                    try {
-                        const res = await fetch('/api/favorites', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(article),
-                            credentials: 'include'
-                        });
-                        if (res.ok) {
-                            const data = await res.json();
-                            favoriteArticles.value.unshift({
-                                ...article,
-                                id: data.id,
-                                dateAdded: new Date().toISOString()
-                            });
-                            return true;
-                        }
-                        return false;
-                    } catch (e) {
-                        console.error('收藏文章失败:', e);
-                        return false;
-                    }
-                };
+                 const addToFavorites = async (article) => {
+                     if (!user.value) {
+                         alert('请先登录后再收藏文章');
+                         openAuth('login');
+                         return false;
+                     }
+                     
+                     // 检查是否已收藏
+                     const isAlreadyFavorited = isItemFavorited(article);
+                     if (isAlreadyFavorited) {
+                         // 如果已经收藏，再次点击则取消收藏（同步每日一文逻辑）
+                         const fav = favoriteArticles.value.find(
+                             f => f.title === article.title && f.author === article.author
+                         );
+                         if (fav && fav.id) {
+                             await removeFavorite(fav.id);
+                         }
+                         return false;
+                     }
+                     
+                     try {
+                         const res = await fetch('/api/favorites', {
+                             method: 'POST',
+                             headers: { 'Content-Type': 'application/json' },
+                             body: JSON.stringify(article),
+                             credentials: 'include'
+                         });
+                         if (res.ok) {
+                             const data = await res.json();
+                             favoriteArticles.value.unshift({
+                                 ...article,
+                                 id: data.id,
+                                 dateAdded: new Date().toISOString()
+                             });
+                             return true;
+                         }
+                         return false;
+                     } catch (e) {
+                         console.error('收藏文章失败:', e);
+                         return false;
+                     }
+                 };
+
+                 // 检查文章是否已收藏
+                 const isItemFavorited = (item) => {
+                     if (!item) return false;
+                     return favoriteArticles.value.some(
+                         fav => fav.title === item.title && fav.author === item.author
+                     );
+                 };
                 
                 // 一键收藏所有上传的文章
                 const addAllToFavorites = async () => {
@@ -2068,6 +2087,7 @@
                          uploadedArticles,
                          loadUploadedArticles,
                          addToFavorites,
+                         isItemFavorited,
                          addAllToFavorites,
                          downloadFavoritesZip,
                          saveUploadedArticle,
