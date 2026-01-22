@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   readzen:
-    image: tianxuan13/readzen:latest
+    image: 2926930231/readzen:latest
     container_name: readzen
     restart: unless-stopped
     ports:
