@@ -1,14 +1,14 @@
 version: '3.8'
 
 services:
-  daily-article-reader:
-    image: tianxuan13/daily-article-reader:latest
-    container_name: daily-article-reader
+  readzen:
+    image: tianxuan13/readzen:latest
+    container_name: readzen
     restart: unless-stopped
     ports:
-      - "5000:5000"
+      - "15000:15000"
     environment:
-      - PORT=5000
+      - PORT=15000
       - HOST=0.0.0.0
       - DATA_DIR=/app/data
       # 可选：设置管理员密码（默认为 admin123）
@@ -17,10 +17,9 @@ services:
       - SECRET_KEY=${SECRET_KEY:-super-secret-key}
     volumes:
       # 数据持久化：将本地 ./data 目录挂载到容器的 /app/data 目录
-      # 所有用户数据、收藏等都会保存到本地
       - ./data:/app/data:rw
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      test: ["CMD", "curl", "-f", "http://localhost:15000/api/daily"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -28,11 +27,6 @@ services:
 # 使用说明：
 # 1. 创建 data 目录：mkdir data
 # 2. 启动服务：docker-compose up -d
-# 3. 访问：http://localhost:5000
+# 3. 访问：http://localhost:15000
 # 4. 查看日志：docker-compose logs -f
 # 5. 停止服务：docker-compose down
-# 6. 数据会保存在本地的 ./data 目录中，即使删除容器也不会丢失
-#
-# 数据包括：
-#   - users.db SQLite 数据库（用户、收藏等）
-#   - 任何应用生成的数据文件
