@@ -469,15 +469,15 @@ def daily():
     """获取每日一文"""
     # 备用API列表
     api_urls = [
-        "https://api.qhsou.com/api/one.php",
-        "https://v2.api.aaabbb.cn/api/meiriyiwen.php",
+        "https://api.qhsou.com/api/one.php"
     ]
 
     article_data = None
 
     for api_url in api_urls:
         try:
-            resp = requests.get(api_url, timeout=5)
+            # 增加 verify=False 提高在受限网络环境下的兼容性
+            resp = requests.get(api_url, timeout=10, verify=False)
             if resp.ok:
                 data = resp.json()
                 # 尝试多种API返回格式
@@ -490,10 +490,7 @@ def daily():
                         or data.get("c_title")
                         or data.get("tt")
                         or "无标题",
-                        "author": data.get("author")
-                        or data.get("c_author")
-                        or data.get("author")
-                        or "未知",
+                        "author": data.get("author") or data.get("c_author") or "未知",
                         "content": data.get("content")
                         or data.get("c_content")
                         or data.get("text")
@@ -502,16 +499,17 @@ def daily():
                     }
                     break
         except Exception as e:
+            print(f"[WARNING] Failed to fetch from {api_url}: {e}")
             continue
 
-    # 如果所有API都失败，返回错误
+    # 如果所有API都失败，返回错误 (状态码改为 503 避免触发网关 502)
     if not article_data:
         return jsonify(
             {
                 "error": "failed to fetch daily",
-                "message": '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。',
+                "message": '无法获取每日一文，请检查容器网络连接。你可以通过"上传中心"功能上传本地文章进行阅读。',
             }
-        ), 502
+        ), 503
 
     return jsonify(article_data)
 
@@ -538,6 +536,14 @@ def admin_delete_user(user_id):
     delete_user(user_id)
     return jsonify({"deleted": user_id})
 
+
+# 在应用启动时执行初始化
+# 放在全局作用域，确保 Gunicorn 导入时也能执行
+with app.app_context():
+    try:
+        initialize_application()
+    except Exception as e:
+        print(f"[CRITICAL] Failed to initialize application: {e}")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 15000))
