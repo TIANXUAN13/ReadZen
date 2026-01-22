@@ -55,13 +55,13 @@
     <div id="app" class="w-full h-full flex flex-row">
         <!-- 左侧导航面板遮罩层 -->
         <div v-if="!isSidebarCollapsed" 
-             class="fixed inset-0 z-40 bg-black bg-opacity-50 touch-none"
+             class="fixed inset-0 z-[55] bg-black bg-opacity-50 touch-none md:hidden"
              @click.self="closeSidebar">
         </div>
 
         <!-- 左侧导航面板 -->
         <aside :class="[
-            'fixed left-0 top-0 bottom-0 z-50 border-r transition-transform duration-300 ease-in-out overflow-hidden',
+            'fixed left-0 top-0 bottom-0 z-[60] border-r transition-transform duration-300 ease-in-out overflow-hidden',
             isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0',
             borderClass + ' ' + bgClass
         ]" style="width: 256px;">
@@ -242,9 +242,9 @@
         </aside>
         
         <!-- 右侧内容区域 -->
-        <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'ml-64']" style="padding-top: 4rem;">
+        <div :class="['flex-1 flex flex-col overflow-hidden transition-all duration-300', isSidebarCollapsed ? 'ml-0' : 'md:ml-64 ml-0']" style="padding-top: 4rem;">
             <!-- 顶部操作栏 -->
-            <header :class="['fixed top-0 left-0 right-0 z-50 py-2 px-3 md:py-4 md:px-6 flex justify-between items-center border-b transition-colors duration-300', borderClass + ' ' + bgClass]">
+            <header :class="['fixed top-0 left-0 right-0 z-50 py-2 px-3 md:py-4 md:px-6 flex justify-between items-center border-b transition-colors duration-300', borderClass + ' ' + bgClass, isSidebarCollapsed ? '' : 'md:ml-64']">
                 <!-- 左侧：菜单按钮和标题放在同一行 -->
                 <div class="flex items-center overflow-hidden">
                     <!-- 菜单按钮（侧边栏关闭时显示） -->
@@ -721,50 +721,62 @@
                               </div>
                               
                               <div v-else :class="['rounded-lg overflow-hidden', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
-                                  <table class="w-full">
-                                      <thead :class="['text-left text-sm font-medium', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700']">
-                                          <tr>
-                                              <th class="px-4 py-3">ID</th>
-                                              <th class="px-4 py-3">用户名</th>
-                                              <th class="px-4 py-3">注册时间</th>
-                                              <th class="px-4 py-3 text-right">操作</th>
-                                          </tr>
-                                      </thead>
-                                      <tbody :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
-                                          <tr 
-                                              v-for="u in allUsers" 
-                                              :key="u.id"
-                                              :class="['border-t', backgroundColor === 'dark' ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50']"
-                                          >
-                                              <td class="px-4 py-3">{{ u.id }}</td>
-                                              <td class="px-4 py-3">
-                                                  <span :class="['font-medium', u.username === 'admin' ? 'text-purple-500' : '']">{{ u.username }}</span>
-                                                  <span v-if="u.username === 'admin'" class="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded">Admin</span>
-                                                  <span v-if="u.id === user.id" class="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">自己</span>
-                                              </td>
-                                              <td class="px-4 py-3">{{ new Date(u.created_at).toLocaleString() }}</td>
-                                               <td class="px-4 py-3 text-right">
-                                                    <button 
-                                                        v-if="u.id !== user.id"
-                                                        @click="deleteUser(u.id)"
-                                                        :class="['px-3 py-1 rounded text-sm font-medium text-red-500 hover:bg-red-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
-                                                        title="删除用户"
-                                                    >
-                                                        删除
-                                                    </button>
-                                                    <span v-else class="text-gray-400 text-sm">-</span>
-                                                    <button 
-                                                        v-if="u.id === user.id"
-                                                        @click="openChangePassword"
-                                                        :class="['ml-2 px-3 py-1 rounded text-sm font-medium text-blue-500 hover:bg-blue-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
-                                                        title="修改密码"
-                                                    >
-                                                        修改密码
-                                                    </button>
-                                                </td>
-                                          </tr>
-                                      </tbody>
-                                  </table>
+                                  <div class="overflow-x-auto">
+                                      <table class="w-full min-w-[600px] md:min-w-full">
+                                          <thead :class="['text-left text-sm font-medium', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700']">
+                                              <tr>
+                                                  <th class="px-4 py-3 w-16">ID</th>
+                                                  <th class="px-4 py-3">用户名</th>
+                                                  <th class="px-4 py-3 hidden sm:table-cell">注册时间</th>
+                                                  <th class="px-4 py-3 text-right">操作</th>
+                                              </tr>
+                                          </thead>
+                                          <tbody :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
+                                              <tr 
+                                                  v-for="u in allUsers" 
+                                                  :key="u.id"
+                                                  :class="['border-t', backgroundColor === 'dark' ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50']"
+                                              >
+                                                  <td class="px-4 py-3">{{ u.id }}</td>
+                                                  <td class="px-4 py-3">
+                                                      <div class="flex flex-col sm:flex-row sm:items-center">
+                                                          <span :class="['font-medium', u.username === 'admin' ? 'text-purple-500' : '']">{{ u.username }}</span>
+                                                          <div class="flex gap-1 mt-1 sm:mt-0 sm:ml-2">
+                                                              <span v-if="u.username === 'admin'" class="text-[10px] bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded">Admin</span>
+                                                              <span v-if="u.id === user.id" class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded">自己</span>
+                                                          </div>
+                                                      </div>
+                                                      <!-- 移动端显示注册时间 -->
+                                                      <div class="sm:hidden text-[10px] opacity-50 mt-1">
+                                                          {{ new Date(u.created_at).toLocaleString() }}
+                                                      </div>
+                                                  </td>
+                                                  <td class="px-4 py-3 hidden sm:table-cell">{{ new Date(u.created_at).toLocaleString() }}</td>
+                                                   <td class="px-4 py-3 text-right">
+                                                        <div class="flex justify-end gap-2">
+                                                            <button 
+                                                                v-if="u.id !== user.id"
+                                                                @click="deleteUser(u.id)"
+                                                                :class="['px-2 py-1 rounded text-xs font-medium text-red-500 hover:bg-red-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
+                                                                title="删除用户"
+                                                            >
+                                                                删除
+                                                            </button>
+                                                            <button 
+                                                                v-if="u.id === user.id"
+                                                                @click="openChangePassword"
+                                                                :class="['px-2 py-1 rounded text-xs font-medium text-blue-500 hover:bg-blue-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
+                                                                title="修改密码"
+                                                            >
+                                                                修改密码
+                                                            </button>
+                                                            <span v-if="u.id !== user.id && u.username === 'admin'" class="text-gray-400 text-xs">-</span>
+                                                        </div>
+                                                    </td>
+                                              </tr>
+                                          </tbody>
+                                      </table>
+                                  </div>
                               </div>
                           </div>
                       </div>
