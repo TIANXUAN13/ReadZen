@@ -83,6 +83,26 @@
             backdrop-filter: blur(12px);
             -webkit-backdrop-filter: blur(12px);
         }
+
+        /* 认证表单切换动画 */
+        .auth-slide-enter-active, .auth-slide-leave-active {
+            transition: all 0.3s ease;
+        }
+        .auth-slide-enter-from {
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .auth-slide-leave-to {
+            opacity: 0;
+            transform: translateX(-20px);
+        }
+
+        /* 输入框聚焦效果 */
+        .input-zen:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+            border-color: #3b82f6;
+        }
     </style>
 </head>
 <body class="antialiased h-screen flex flex-col">
@@ -391,130 +411,174 @@
              </header>
 
             <!-- 登录/注册弹窗 -->
-            <div v-if="showAuth" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showAuth = false">
-                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
-                            {{ authMode === 'login' ? '登录' : '注册' }}
-                        </h3>
-                        <button @click="showAuth = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                    
-                    <!-- 登录/注册切换 -->
-                    <div class="flex gap-2 mb-4">
-                        <button 
-                            @click="authMode = 'login'"
-                            :class="['flex-1 py-2 rounded text-sm font-medium transition-colors', authMode === 'login' ? (backgroundColor === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white') : (backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')]"
-                        >
-                            登录
-                        </button>
-                        <button 
-                            @click="authMode = 'register'"
-                            :class="['flex-1 py-2 rounded text-sm font-medium transition-colors', authMode === 'register' ? (backgroundColor === 'dark' ? 'bg-green-600 text-white' : 'bg-green-500 text-white') : (backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600')]"
-                        >
-                            注册
-                        </button>
-                    </div>
-                    
-                    <!-- 登录表单 -->
-                    <div v-if="authMode === 'login'">
-                        <input 
-                            v-model="loginForm.username"
-                            type="text"
-                            placeholder="用户名"
-                            :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
-                        />
-                        <input 
-                            v-model="loginForm.password"
-                            type="password"
-                            placeholder="密码"
-                            @keyup.enter="doLogin"
-                            :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
-                        />
-                        <!-- 验证码输入 -->
-                        <div class="flex gap-2 mb-4">
-                            <input 
-                                v-model="loginForm.captcha"
-                                type="text"
-                                placeholder="验证码"
-                                maxlength="4"
-                                @keyup.enter="doLogin"
-                                :class="['flex-1 px-3 py-2 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
-                            />
-                            <img 
-                                v-if="captchaImage"
-                                :src="captchaImage"
-                                @click="refreshCaptcha"
-                                class="w-24 h-10 rounded border cursor-pointer"
-                                :class="[backgroundColor === 'dark' ? 'border-gray-600' : 'border-gray-300']"
-                                title="点击刷新验证码"
-                            />
-                            <div v-else class="w-24 h-10 rounded border flex items-center justify-center" 
-                                :class="[backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300']">
-                                <div class="animate-spin rounded-full h-4 w-4 border-b-2" 
-                                    :class="[backgroundColor === 'dark' ? 'border-gray-400' : 'border-gray-600']"></div>
+            <transition name="toast">
+                <div v-if="showAuth" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" @click.self="showAuth = false">
+                    <div :class="['w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden glass-panel border transition-all duration-300', backgroundColor === 'dark' ? 'bg-gray-900/80 border-gray-700' : 'bg-white/90 border-white']">
+                        <!-- 弹窗头部 -->
+                        <div class="p-6 pb-0 flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <h3 :class="['text-xl font-bold tracking-tight', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                                    {{ authMode === 'login' ? '欢迎回来' : '开启阅读之旅' }}
+                                </h3>
+                                <p class="text-xs opacity-50 mt-1">
+                                    {{ authMode === 'login' ? '请登录您的账号' : '创建一个新账号以保存收藏' }}
+                                </p>
+                            </div>
+                            <button @click="showAuth = false" :class="['p-2 rounded-full hover:bg-black/10 transition-colors', backgroundColor === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-400']">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <!-- 模式切换 Tab -->
+                        <div class="p-6 pb-4">
+                            <div :class="['flex p-1 rounded-xl relative', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-gray-100']">
+                                <!-- 滑动背景 -->
+                                <div 
+                                    class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-300 ease-out z-0"
+                                    :class="[authMode === 'login' ? 'left-1 bg-white shadow-sm' : 'left-[calc(50%+2px)] bg-white shadow-sm', backgroundColor === 'dark' ? '!bg-gray-700' : '']"
+                                ></div>
+                                <button 
+                                    @click="authMode = 'login'"
+                                    class="flex-1 py-2 text-sm font-semibold transition-all relative z-10"
+                                    :class="[authMode === 'login' ? (backgroundColor === 'dark' ? 'text-white' : 'text-blue-600') : 'text-gray-400']"
+                                >
+                                    登录
+                                </button>
+                                <button 
+                                    @click="authMode = 'register'"
+                                    class="flex-1 py-2 text-sm font-semibold transition-all relative z-10"
+                                    :class="[authMode === 'register' ? (backgroundColor === 'dark' ? 'text-white' : 'text-green-600') : 'text-gray-400']"
+                                >
+                                    注册
+                                </button>
                             </div>
                         </div>
-                        <button 
-                            @click="doLogin"
-                            :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
-                        >
-                            登录
-                        </button>
-                    </div>
-                    
-                    <!-- 注册表单 -->
-                    <div v-else>
-                        <input 
-                            v-model="regForm.username"
-                            type="text"
-                            placeholder="用户名"
-                            :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
-                        />
-                        <input 
-                            v-model="regForm.password"
-                            type="password"
-                            placeholder="密码"
-                            @keyup.enter="doRegister"
-                            :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
-                        />
-                        <!-- 验证码输入 -->
-                        <div class="flex gap-2 mb-4">
-                            <input 
-                                v-model="regForm.captcha"
-                                type="text"
-                                placeholder="验证码"
-                                maxlength="4"
-                                @keyup.enter="doRegister"
-                                :class="['flex-1 px-3 py-2 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
-                            />
-                            <img 
-                                v-if="captchaImage"
-                                :src="captchaImage"
-                                @click="refreshCaptcha"
-                                class="w-24 h-10 rounded border cursor-pointer"
-                                :class="[backgroundColor === 'dark' ? 'border-gray-600' : 'border-gray-300']"
-                                title="点击刷新验证码"
-                            />
-                            <div v-else class="w-24 h-10 rounded border flex items-center justify-center" 
-                                :class="[backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100 border-gray-300']">
-                                <div class="animate-spin rounded-full h-4 w-4 border-b-2" 
-                                    :class="[backgroundColor === 'dark' ? 'border-gray-400' : 'border-gray-600']"></div>
-                            </div>
+                        
+                        <!-- 表单主体 -->
+                        <div class="p-6 pt-0 relative min-h-[280px]">
+                            <transition name="auth-slide" mode="out-in">
+                                <!-- 登录表单 -->
+                                <div v-if="authMode === 'login'" key="login" class="space-y-4">
+                                    <div>
+                                        <input 
+                                            v-model="loginForm.username"
+                                            type="text"
+                                            placeholder="您的用户名"
+                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                        />
+                                    </div>
+                                    <div>
+                                        <input 
+                                            v-model="loginForm.password"
+                                            type="password"
+                                            placeholder="输入密码"
+                                            @keyup.enter="doLogin"
+                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                        />
+                                    </div>
+                                    <!-- 验证码 -->
+                                    <div class="flex gap-3">
+                                        <input 
+                                            v-model="loginForm.captcha"
+                                            type="text"
+                                            placeholder="验证码"
+                                            maxlength="4"
+                                            @keyup.enter="doLogin"
+                                            class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                        />
+                                        <div class="relative group cursor-pointer" @click="refreshCaptcha">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 rotate-0 group-hover:rotate-180 transition-all duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </div>
+                                            <img 
+                                                v-if="captchaImage"
+                                                :src="captchaImage"
+                                                class="w-36 h-12 rounded-xl border-2 object-contain transition-all shadow-sm"
+                                                :class="[backgroundColor === 'dark' ? 'border-gray-700 bg-white' : 'border-gray-100 bg-white']"
+                                            />
+                                            <div v-else class="w-36 h-12 rounded-xl border flex items-center justify-center animate-pulse" 
+                                                :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200']">
+                                                <div class="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        @click="doLogin"
+                                        class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]"
+                                    >
+                                        立即登录
+                                    </button>
+                                </div>
+                                
+                                <!-- 注册表单 -->
+                                <div v-else key="register" class="space-y-4">
+                                    <div>
+                                        <input 
+                                            v-model="regForm.username"
+                                            type="text"
+                                            placeholder="设置用户名"
+                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                        />
+                                    </div>
+                                    <div>
+                                        <input 
+                                            v-model="regForm.password"
+                                            type="password"
+                                            placeholder="设置登录密码"
+                                            @keyup.enter="doRegister"
+                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                        />
+                                    </div>
+                                    <!-- 验证码 -->
+                                    <div class="flex gap-3">
+                                        <input 
+                                            v-model="regForm.captcha"
+                                            type="text"
+                                            placeholder="验证码"
+                                            maxlength="4"
+                                            @keyup.enter="doRegister"
+                                            class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                        />
+                                        <div class="relative group cursor-pointer" @click="refreshCaptcha">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 opacity-0 group-hover:opacity-100 rotate-0 group-hover:rotate-180 transition-all duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                            </div>
+                                            <img 
+                                                v-if="captchaImage"
+                                                :src="captchaImage"
+                                                class="w-36 h-12 rounded-xl border-2 object-contain transition-all shadow-sm"
+                                                :class="[backgroundColor === 'dark' ? 'border-gray-700 bg-white' : 'border-gray-100 bg-white']"
+                                            />
+                                            <div v-else class="w-36 h-12 rounded-xl border flex items-center justify-center animate-pulse" 
+                                                :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200']">
+                                                <div class="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        @click="doRegister"
+                                        class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30 transition-all active:scale-[0.98]"
+                                    >
+                                        创建账号
+                                    </button>
+                                </div>
+                            </transition>
                         </div>
-                        <button 
-                            @click="doRegister"
-                            :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-green-600 hover:bg-green-700' : 'bg-green-500 hover:bg-green-600']"
-                        >
-                            注册
-                        </button>
                     </div>
                 </div>
-            </div>
+            </transition>
 
             <!-- 主内容区 -->
             <main class="flex-1 overflow-hidden relative">

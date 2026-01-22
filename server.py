@@ -44,7 +44,7 @@ CORS(app, supports_credentials=True)
 # --- 验证码系统开始 ---
 
 # 验证码图片生成器
-captcha_generator = ImageCaptcha(width=120, height=40)
+captcha_generator = ImageCaptcha(width=160, height=60)
 
 
 @app.route("/api/captcha", methods=["GET"])
