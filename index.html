@@ -97,11 +97,30 @@
             transform: translateX(-20px);
         }
 
-        /* 输入框聚焦效果 */
-        .input-zen:focus {
-            outline: none;
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
-            border-color: #3b82f6;
+        /* 侧边栏导航激活项滑动动画 */
+        .nav-indicator {
+            position: absolute;
+            left: 8px;
+            right: 8px;
+            height: 48px;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 0;
+        }
+
+        .nav-item-content {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 侧边栏玻璃感 */
+        .sidebar-glass {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .dark .sidebar-glass {
+            background: rgba(17, 24, 39, 0.8);
         }
     </style>
 </head>
@@ -138,9 +157,9 @@
 
         <!-- 左侧导航面板 -->
         <aside :class="[
-            'fixed left-0 top-0 bottom-0 z-[60] border-r transition-transform duration-300 ease-in-out overflow-hidden',
+            'fixed left-0 top-0 bottom-0 z-[60] border-r transition-transform duration-300 ease-in-out overflow-hidden sidebar-glass',
             isSidebarCollapsed ? '-translate-x-full' : 'translate-x-0',
-            borderClass + ' ' + bgClass
+            borderClass
         ]" style="width: 256px;">
             <div class="h-full flex flex-col p-4">
                 <!-- 关闭按钮 (移动端显示) -->
@@ -170,42 +189,72 @@
                 </div>
                 
                 <!-- 导航菜单 -->
-                <nav class="flex-1">
+                <nav class="flex-1 overflow-y-auto">
                     <ul class="space-y-2">
-                         <li>
-                             <button 
-                                 @click="activeTab = 'daily'; isSidebarCollapsed = true"
-                                 :class="[
-                                     'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                     activeTab === 'daily' ? navActiveClass : hoverBgClass
-                                 ]"
-                             >
-                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                 </svg>
-                                 <span>每日一文</span>
-                             </button>
-                          </li>
+                          <li>
+                              <button 
+                                  @click="activeTab = 'daily'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                      activeTab === 'daily' 
+                                          ? (backgroundColor === 'dark' ? 'bg-blue-600/20 text-blue-400 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' : 'bg-blue-50 text-blue-600 shadow-sm') 
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-50 text-gray-600')
+                                  ]"
+                              >
+                                  <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-blue-500 transition-transform duration-300', activeTab === 'daily' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                  <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'daily' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                  </svg>
+                                  <span class="font-medium">每日一文</span>
+                              </button>
+                           </li>
+
+                           <li>
+                                <button 
+                                    @click="activeTab = 'favorites'; isSidebarCollapsed = true"
+                                    :class="[
+                                        'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                        activeTab === 'favorites' 
+                                            ? (backgroundColor === 'dark' ? 'bg-red-600/20 text-red-400 shadow-[inset_0_0_20px_rgba(239,68,68,0.1)]' : 'bg-red-50 text-red-600 shadow-sm') 
+                                            : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-50 text-gray-600')
+                                    ]"
+                                >
+                                    <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-red-500 transition-transform duration-300', activeTab === 'favorites' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                    <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'favorites' ? 'scale-110' : 'group-hover:scale-110']" :fill="activeTab === 'favorites' ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                                    </svg>
+                                    <span class="font-medium">收藏文章</span>
+                                    <span
+                                        v-if="favoriteArticles.length > 0"
+                                        :class="['ml-auto text-[10px] font-bold rounded-full px-2 py-0.5', activeTab === 'favorites' ? 'bg-red-500 text-white' : 'bg-red-100 text-red-600']"
+                                    >
+                                        {{ favoriteArticles.length }}
+                                    </span>
+                                 </button>
+                             </li>
 
                           <!-- 上传中心（可展开菜单） -->
                           <li>
-                             <div>
+                             <div class="space-y-1">
                                  <button 
                                      @click="toggleUploadMenu"
                                      :class="[
-                                         'flex items-center justify-between w-full px-4 py-3 rounded-lg transition-all',
-                                         (activeTab === 'upload-file' || activeTab === 'upload-folder' || activeTab === 'upload-list') ? navActiveClass : hoverBgClass
+                                         'group flex items-center justify-between w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                         (activeTab === 'upload-file' || activeTab === 'upload-folder' || activeTab === 'upload-list')
+                                             ? (backgroundColor === 'dark' ? 'bg-blue-600/20 text-blue-400 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' : 'bg-blue-50 text-blue-600 shadow-sm') 
+                                             : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-50 text-gray-600')
                                      ]"
                                  >
-                                     <div class="flex items-center gap-3">
-                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                     <div v-if="activeTab === 'upload-file' || activeTab === 'upload-folder' || activeTab === 'upload-list'" class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+                                     <div class="flex items-center gap-3 nav-item-content">
+                                         <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', isUploadMenuOpen ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                                          </svg>
-                                         <span>上传中心</span>
+                                         <span class="font-medium">上传中心</span>
                                      </div>
                                      <svg 
                                          xmlns="http://www.w3.org/2000/svg" 
-                                         :class="['h-4 w-4 transition-transform duration-200', isUploadMenuOpen ? 'rotate-180' : '']" 
+                                         :class="['h-4 w-4 transition-transform duration-300', isUploadMenuOpen ? 'rotate-180' : '']" 
                                          fill="none" viewBox="0 0 24 24" stroke="currentColor"
                                      >
                                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
@@ -213,103 +262,78 @@
                                  </button>
 
                                  <!-- 子菜单 -->
-                                 <ul v-show="isUploadMenuOpen" class="mt-1 space-y-1 ml-8">
-                                     <li>
-                                         <button 
-                                             @click="handleUploadOption('upload-file')"
-                                             :class="[
-                                                 'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
-                                                 activeTab === 'upload-file' 
-                                                     ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
-                                                     : (backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600')
-                                             ]"
-                                         >
-                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                             </svg>
-                                             <span>上传文件</span>
-                                         </button>
-                                     </li>
-                                     <li>
-                                         <button 
-                                             @click="handleUploadOption('upload-folder')"
-                                             :class="[
-                                                 'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
-                                                 activeTab === 'upload-folder'
-                                                     ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
-                                                     : (backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600')
-                                             ]"
-                                         >
-                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                                             </svg>
-                                             <span>上传文件夹</span>
-                                         </button>
-                                     </li>
-                                     <li>
-                                         <button 
-                                             @click="handleUploadOption('upload-list')"
-                                             :class="[
-                                                 'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
-                                                 activeTab === 'upload-list'
-                                                     ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-100 text-blue-800')
-                                                     : (backgroundColor === 'dark' ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-600')
-                                             ]"
-                                         >
-                                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-                                             </svg>
-                                             <span>上传列表</span>
-                                             <span 
-                                                 v-if="uploadedArticles.length > 0"
-                                                 :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-blue-200 text-blue-700']"
-                                             >
-                                                 {{ uploadedArticles.length }}
-                                             </span>
-                                         </button>
-                                     </li>
-                                 </ul>
+                                 <transition name="toast">
+                                    <ul v-show="isUploadMenuOpen" class="mt-1 space-y-1 ml-6 pl-4 border-l-2 border-gray-100 dark:border-gray-800">
+                                        <li>
+                                            <button 
+                                                @click="handleUploadOption('upload-file')"
+                                                :class="[
+                                                    'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
+                                                    activeTab === 'upload-file' 
+                                                        ? 'text-blue-500 font-semibold'
+                                                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                                                ]"
+                                            >
+                                                <span>上传文件</span>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button 
+                                                @click="handleUploadOption('upload-folder')"
+                                                :class="[
+                                                    'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
+                                                    activeTab === 'upload-folder'
+                                                        ? 'text-blue-500 font-semibold'
+                                                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                                                ]"
+                                            >
+                                                <span>上传文件夹</span>
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button 
+                                                @click="handleUploadOption('upload-list')"
+                                                :class="[
+                                                    'flex items-center gap-2 w-full px-3 py-2 rounded-lg text-sm transition-all',
+                                                    activeTab === 'upload-list'
+                                                        ? 'text-blue-500 font-semibold'
+                                                        : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'
+                                                ]"
+                                            >
+                                                <span>上传列表</span>
+                                                <span 
+                                                    v-if="uploadedArticles.length > 0"
+                                                    class="ml-auto text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-bold"
+                                                >
+                                                    {{ uploadedArticles.length }}
+                                                </span>
+                                            </button>
+                                        </li>
+                                    </ul>
+                                 </transition>
                              </div>
                           </li>
 
-                          <li>
-                              <button
-                                  @click="activeTab = 'favorites'; isSidebarCollapsed = true"
-                                  :class="[
-                                      'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
-                                      activeTab === 'favorites' ? navActiveClass : hoverBgClass
-                                  ]"
-                              >
-                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" :fill="activeTab === 'favorites' ? 'currentColor' : 'none'" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                  </svg>
-                                  <span>收藏文章</span>
-                                  <span
-                                      :class="['ml-auto text-xs font-medium rounded-full px-2 py-0.5', badgeBgClass]"
-                                  >
-                                      {{ favoriteArticles.length }}
-                                  </span>
-                               </button>
-                           </li>
                           <!-- 用户管理入口 (仅 admin 可见) -->
                           <li v-if="user && user.username === 'admin'">
                               <button
                                   @click="activeTab = 'admin'; isSidebarCollapsed = true"
                                   :class="[
-                                      'flex items-center gap-3 w-full px-4 py-3 rounded-lg transition-all',
+                                      'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
                                       activeTab === 'admin'
-                                          ? (backgroundColor === 'dark' ? 'bg-gray-800 text-white' : 'bg-purple-100 text-purple-800')
-                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800' : 'hover:bg-gray-100')
+                                          ? (backgroundColor === 'dark' ? 'bg-purple-600/20 text-purple-400 shadow-[inset_0_0_20px_rgba(168,85,247,0.1)]' : 'bg-purple-50 text-purple-600 shadow-sm') 
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-100 text-gray-600')
                                   ]"
                               >
-                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-purple-500 transition-transform duration-300', activeTab === 'admin' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                  <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'admin' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                   </svg>
-                                  <span>用户管理</span>
+                                  <span class="font-medium">用户管理</span>
                               </button>
                           </li>
-                      </ul>
-                  </nav>
+                       </ul>
+                   </nav>
                 
                 <!-- 底部信息 -->
                 <div class="mt-8 pb-4 text-center">
@@ -437,7 +461,8 @@
                                 <!-- 滑动背景 -->
                                 <div 
                                     class="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-lg transition-all duration-300 ease-out z-0"
-                                    :class="[authMode === 'login' ? 'left-1 bg-white shadow-sm' : 'left-[calc(50%+2px)] bg-white shadow-sm', backgroundColor === 'dark' ? '!bg-gray-700' : '']"
+                                    :style="{ transform: authMode === 'login' ? 'translateX(0)' : 'translateX(calc(100% + 4px))' }"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-white shadow-sm']"
                                 ></div>
                                 <button 
                                     @click="authMode = 'login'"
@@ -461,26 +486,21 @@
                             <transition name="auth-slide" mode="out-in">
                                 <!-- 登录表单 -->
                                 <div v-if="authMode === 'login'" key="login" class="space-y-4">
-                                    <div>
-                                        <input 
-                                            v-model="loginForm.username"
-                                            type="text"
-                                            placeholder="您的用户名"
-                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                        />
-                                    </div>
-                                    <div>
-                                        <input 
-                                            v-model="loginForm.password"
-                                            type="password"
-                                            placeholder="输入密码"
-                                            @keyup.enter="doLogin"
-                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                        />
-                                    </div>
-                                    <!-- 验证码 -->
+                                    <input 
+                                        v-model="loginForm.username"
+                                        type="text"
+                                        placeholder="您的用户名"
+                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <input 
+                                        v-model="loginForm.password"
+                                        type="password"
+                                        placeholder="输入密码"
+                                        @keyup.enter="doLogin"
+                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
                                     <div class="flex gap-3">
                                         <input 
                                             v-model="loginForm.captcha"
@@ -491,54 +511,40 @@
                                             class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                             :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                         />
-                                        <div class="relative group cursor-pointer" @click="refreshCaptcha">
-                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden">
+                                        <div class="relative group cursor-pointer flex-shrink-0" @click="refreshCaptcha">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden z-10">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500 opacity-0 group-hover:opacity-100 rotate-0 group-hover:rotate-180 transition-all duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </div>
-                                            <img 
-                                                v-if="captchaImage"
-                                                :src="captchaImage"
-                                                class="w-36 h-12 rounded-xl border-2 object-contain transition-all shadow-sm"
-                                                :class="[backgroundColor === 'dark' ? 'border-gray-700 bg-white' : 'border-gray-100 bg-white']"
-                                            />
-                                            <div v-else class="w-36 h-12 rounded-xl border flex items-center justify-center animate-pulse" 
-                                                :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200']">
+                                            <img v-if="captchaImage" :src="captchaImage" class="w-32 h-11 rounded-xl border-2 object-contain bg-white shadow-sm" />
+                                            <div v-else class="w-32 h-11 rounded-xl border flex items-center justify-center animate-pulse bg-gray-100">
                                                 <div class="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                             </div>
                                         </div>
                                     </div>
-                                    <button 
-                                        @click="doLogin"
-                                        class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]"
-                                    >
+                                    <button @click="doLogin" class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]">
                                         立即登录
                                     </button>
                                 </div>
                                 
                                 <!-- 注册表单 -->
                                 <div v-else key="register" class="space-y-4">
-                                    <div>
-                                        <input 
-                                            v-model="regForm.username"
-                                            type="text"
-                                            placeholder="设置用户名"
-                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                        />
-                                    </div>
-                                    <div>
-                                        <input 
-                                            v-model="regForm.password"
-                                            type="password"
-                                            placeholder="设置登录密码"
-                                            @keyup.enter="doRegister"
-                                            class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                        />
-                                    </div>
-                                    <!-- 验证码 -->
+                                    <input 
+                                        v-model="regForm.username"
+                                        type="text"
+                                        placeholder="设置用户名"
+                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <input 
+                                        v-model="regForm.password"
+                                        type="password"
+                                        placeholder="设置登录密码"
+                                        @keyup.enter="doRegister"
+                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
                                     <div class="flex gap-3">
                                         <input 
                                             v-model="regForm.captcha"
@@ -549,28 +555,19 @@
                                             class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                             :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                         />
-                                        <div class="relative group cursor-pointer" @click="refreshCaptcha">
-                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden">
+                                        <div class="relative group cursor-pointer flex-shrink-0" @click="refreshCaptcha">
+                                            <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden z-10">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 opacity-0 group-hover:opacity-100 rotate-0 group-hover:rotate-180 transition-all duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </div>
-                                            <img 
-                                                v-if="captchaImage"
-                                                :src="captchaImage"
-                                                class="w-36 h-12 rounded-xl border-2 object-contain transition-all shadow-sm"
-                                                :class="[backgroundColor === 'dark' ? 'border-gray-700 bg-white' : 'border-gray-100 bg-white']"
-                                            />
-                                            <div v-else class="w-36 h-12 rounded-xl border flex items-center justify-center animate-pulse" 
-                                                :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200']">
+                                            <img v-if="captchaImage" :src="captchaImage" class="w-32 h-11 rounded-xl border-2 object-contain bg-white shadow-sm" />
+                                            <div v-else class="w-32 h-11 rounded-xl border flex items-center justify-center animate-pulse bg-gray-100">
                                                 <div class="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                                             </div>
                                         </div>
                                     </div>
-                                    <button 
-                                        @click="doRegister"
-                                        class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30 transition-all active:scale-[0.98]"
-                                    >
+                                    <button @click="doRegister" class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 shadow-lg shadow-green-500/30 transition-all active:scale-[0.98]">
                                         创建账号
                                     </button>
                                 </div>
@@ -1128,6 +1125,26 @@
                  const currentDailyArticle = ref(null);
                  // 侧边栏展开/折叠状态
                  const isSidebarCollapsed = ref(true);
+                 
+                 // 计算侧边栏激活项的偏移量
+                 const navIndicatorOffset = computed(() => {
+                     const order = {
+                         'daily': 0,
+                         'favorites': 1,
+                         'admin': 2,
+                         'upload-list': 3 // 简化逻辑，假设上传列表在后面
+                     };
+                     
+                     // 实际情况可能更复杂，因为有折叠菜单和 admin 权限
+                     // 这里我们通过一个数组来精确查找
+                     const items = ['daily', 'favorites'];
+                     if (user.value && user.username === 'admin') items.push('admin');
+                     
+                     const index = items.indexOf(activeTab.value);
+                     if (index !== -1) return index * 56; // 56px 是每个项目的高度+间距
+                     return -100; // 隐藏
+                 });
+
                  const favoriteArticles = ref([]);
                  // 标记当前是否在查看本地/收藏文章（避免被每日一文覆盖）
                  const isViewingLocal = ref(false);
