@@ -684,8 +684,14 @@
                                          一键收藏全部
                                      </button>
                                  </div>
-                             </div>
-                             <div class="space-y-3">
+                              </div>
+                              <button 
+                                  @click="clearUploaded"
+                                  :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white']"
+                              >
+                                  清空上传列表
+                              </button>
+                              <div class="space-y-3">
                                  <div 
                                      v-for="item in uploadedArticles" 
                                      :key="item.id"
@@ -1394,7 +1400,7 @@
                         alert('收藏失败，请重试');
                     }
                 };
-                
+
                 // 批量下载收藏文章
                 const downloadFavoritesZip = async () => {
                     if (favoriteArticles.value.length === 0) {
@@ -1436,6 +1442,32 @@
                         }
                     } catch (e) {
                         console.error('加载收藏失败:', e);
+                    }
+                };
+
+                // 一键清空上传列表
+                const clearUploaded = async () => {
+                    if (!uploadedArticles.value || uploadedArticles.value.length === 0) {
+                        alert('没有可清空的上传文章');
+                        return;
+                    }
+                    if (!confirm('确定要清空上传列表吗？该操作不可撤销。')) return;
+                    try {
+                        const res = await fetch('/api/uploaded/clear', {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            uploadedArticles.value = [];
+                            showToast(`已清空 ${data.count || 0} 篇文章`, 'success');
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '清空失败');
+                        }
+                    } catch (e) {
+                        console.error('清空上传列表失败:', e);
+                        alert('清空失败，请稍后重试');
                     }
                 };
                 
@@ -2254,7 +2286,8 @@
                          isItemFavorited,
                          addAllToFavorites,
                          downloadFavoritesZip,
-                         saveUploadedArticle,
+                          saveUploadedArticle,
+                          clearUploaded,
                          deleteUploadedArticle,
                          downloadUploadedArticle,
                          downloadUploadedZip,
