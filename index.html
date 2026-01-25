@@ -1796,21 +1796,25 @@
 
                         if (isTextFile && !file.name.startsWith('.') && file.size > 0) {
                             const reader = new FileReader();
-                            reader.onload = (e) => {
-                                const content = e.target.result;
-                                const lines = content.split('\n');
-                                let title = file.name.replace(/\.(txt|md|text|log|htm|html|article)$/i, '');
-                                let author = '未知作者';
-                                let articleContent = content;
+                                reader.onload = (e) => {
+                                    const content = e.target.result;
+                                    const lines = content.split('\n');
+                                    let title = file.name.replace(/\.(txt|md|text|log|htm|html|article)$/i, '');
+                                    let author = '未知作者';
+                                    let articleContent = content;
 
-                                // 尝试从文件内容中提取标题和作者
-                                if (lines.length > 0 && lines[0].trim()) {
-                                    // 如果第一行比较短（小于100字符），把它作为标题
-                                    const firstLine = lines[0].trim();
-                                    if (firstLine.length < 100 && !firstLine.startsWith('<')) {
-                                        title = firstLine;
+                                    // 尝试从文件内容中提取标题和作者
+                                    if (lines.length > 0 && lines[0].trim()) {
+                                        // 如果第一行比较短（小于100字符），把它作为标题
+                                        let firstLineRaw = lines[0].trim();
+                                        if (firstLineRaw.length < 100 && !firstLineRaw.startsWith('<')) {
+                                            // 去掉前缀标识，如 "标题: 狗难" -> "狗难"
+                                            let firstLine = firstLineRaw.replace(/^(标题|Title|题名)[:：]\s*/i, '');
+                                            if (firstLine.length > 0) {
+                                                title = firstLine;
+                                            }
+                                        }
                                     }
-                                }
                                 if (lines.length > 1) {
                                     const authorLine = lines[1].trim();
                                     if (authorLine.startsWith('作者：') || authorLine.startsWith('作者:') || 

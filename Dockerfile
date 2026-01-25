@@ -63,7 +63,9 @@ EXPOSE ${PORT}
 
 # 使用 Gunicorn 启动
 CMD ["gunicorn", \
-     "-w", "4", \
+     "-w", "1", \
+     "-k", "gthread", \
+     "--threads", "8", \
      "-b", "0.0.0.0:15000", \
      "--timeout", "120", \
      "--access-logfile", "-", \
