@@ -239,10 +239,15 @@ def register():
     data = request.json or {}
     username = data.get("username")
     password = data.get("password")
+    confirm_password = data.get("confirm_password", data.get("password_confirm", ""))
     captcha = data.get("captcha", "").strip().upper()
 
     if not username or not password:
         return jsonify({"error": "username和password是必填项"}), 400
+
+    # 校验两次输入的密码是否一致
+    if confirm_password != password:
+        return jsonify({"error": "两次输入的密码不一致"}), 400
 
     # 验证码验证
     session_captcha = session.get("captcha")

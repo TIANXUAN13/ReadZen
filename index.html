@@ -530,31 +530,39 @@
                                 
                                 <!-- 注册表单 -->
                                 <div v-else key="register" class="space-y-4">
-                                    <input 
-                                        v-model="regForm.username"
-                                        type="text"
-                                        placeholder="设置用户名"
-                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                    />
-                                    <input 
-                                        v-model="regForm.password"
-                                        type="password"
-                                        placeholder="设置登录密码"
-                                        @keyup.enter="doRegister"
-                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                    />
-                                    <div class="flex gap-3">
-                                        <input 
-                                            v-model="regForm.captcha"
-                                            type="text"
-                                            placeholder="验证码"
-                                            maxlength="4"
-                                            @keyup.enter="doRegister"
-                                            class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                        />
+                                <input 
+                                    v-model="regForm.username"
+                                    type="text"
+                                    placeholder="设置用户名"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <input 
+                                    v-model="regForm.password"
+                                    type="password"
+                                    placeholder="设置登录密码"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <input 
+                                    v-model="regForm.confirm_password"
+                                    type="password"
+                                    placeholder="确认密码"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <div class="flex gap-3">
+                                <input 
+                                    v-model="regForm.captcha"
+                                    type="text"
+                                    placeholder="验证码"
+                                    maxlength="4"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
                                         <div class="relative group cursor-pointer flex-shrink-0" @click="refreshCaptcha">
                                             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden z-10">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 opacity-0 group-hover:opacity-100 rotate-0 group-hover:rotate-180 transition-all duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1477,7 +1485,7 @@
                 const showAuth = ref(false);
                 const authMode = ref('login');
                 const loginForm = reactive({ username: '', password: '', captcha: '' });
-                const regForm = reactive({ username: '', password: '', captcha: '' });
+                const regForm = reactive({ username: '', password: '', confirm_password: '', captcha: '' });
                 const captchaImage = ref('');
                 
                 // 获取验证码图片
@@ -1549,12 +1557,18 @@
                 
                 // 注册
                 const doRegister = async () => {
+                    // 客户端校验：密码两次输入是否一致
+                    if (regForm.password !== regForm.confirm_password) {
+                        showToast('两次输入的密码不一致', 'error');
+                        return;
+                    }
                     const resp = await fetch('/api/auth/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             username: regForm.username, 
                             password: regForm.password,
+                            confirm_password: regForm.confirm_password,
                             captcha: regForm.captcha 
                         }),
                         credentials: 'include'
