@@ -23,7 +23,7 @@ docker run -d \
   -p 15000:15000 \
   -v $(pwd)/data:/app/data \
   -e ADMIN_PASSWORD=admin123 \
-  tianxuan13/readzen:latest
+  2926930231/readzen:latest
 ```
 
 访问地址: `http://localhost:15000`
@@ -35,7 +35,7 @@ docker run -d \
 version: '3.8'
 services:
   readzen:
-    image: tianxuan13/readzen:latest
+    image: 2926930231/readzen:latest
     ports:
       - "15000:15000"
     volumes:
@@ -53,6 +53,14 @@ docker-compose up -d
 
 ```bash
 # 1. 安装依赖
+python -m venv venv
+
+mac python 虚拟环境激活
+source testwaf/bin/activate
+
+windows python 虚拟环境激活:
+venv\Scripts\activate
+
 pip install -r requirements.txt
 
 # 2. 运行服务
