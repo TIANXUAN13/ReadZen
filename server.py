@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 import requests
 import shutil  # 新增：用于文件复制
@@ -29,6 +30,7 @@ from database import (
     get_uploaded_articles,
     save_uploaded_article,
     delete_uploaded_article,
+    delete_all_uploaded_articles,
     DATA_DIR,
     DB_PATH,
 )
@@ -40,6 +42,27 @@ app = Flask(__name__, static_folder=".")
 app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key")
 
 CORS(app, supports_credentials=True)
+
+# 工具函数：从文章内容头部移除标题/作者等元信息（可选，防止上传时把元信息当作正文内容）
+def strip_header_lines(text: str) -> str:
+    if not isinstance(text, str):
+        return text
+    try:
+        lines = text.splitlines()
+        idx = 0
+        while idx < len(lines):
+            line = lines[idx].strip()
+            if line == "":
+                idx += 1
+                continue
+            # 移除以 标题、作者 开头的行，包含可能的冒号/全角冒号等
+            if line.startswith("标题") or line.startswith("作者"):
+                idx += 1
+                continue
+            break
+        return "\n".join(lines[idx:])
+    except Exception:
+        return text
 
 # --- 验证码系统开始 ---
 
@@ -216,10 +239,15 @@ def register():
     data = request.json or {}
     username = data.get("username")
     password = data.get("password")
+    confirm_password = data.get("confirm_password", data.get("password_confirm", ""))
     captcha = data.get("captcha", "").strip().upper()
 
     if not username or not password:
         return jsonify({"error": "username和password是必填项"}), 400
+
+    # 校验两次输入的密码是否一致
+    if confirm_password != password:
+        return jsonify({"error": "两次输入的密码不一致"}), 400
 
     # 验证码验证
     session_captcha = session.get("captcha")
@@ -373,6 +401,14 @@ def save_uploaded():
     if not title or not content:
         return jsonify({"error": "title和content是必填项"}), 400
 
+    # 处理可能的本地文档头部元信息（如标题、作者等）
+    content = strip_header_lines(content)
+    # 重新评估长度/非空性
+    if content is None:
+        content = ""
+    if not title or not content:
+        return jsonify({"error": "title和content是必填项"}), 400
+
     # 重复校验：检查数据库中是否已存在相同标题和内容的文章
     conn = sqlite3.connect(DB_PATH)
     cur = conn.cursor()
@@ -395,6 +431,17 @@ def delete_uploaded(article_id):
     """删除上传的文章"""
     delete_uploaded_article(article_id)
     return jsonify({"deleted": article_id})
+
+
+@app.route("/api/uploaded/clear", methods=["POST"])
+def clear_uploaded():
+    """清空上传的文章列表"""
+    count = 0
+    try:
+        count = delete_all_uploaded_articles()
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    return jsonify({"cleared": True, "count": count})
 
 
 # 收藏文章批量操作

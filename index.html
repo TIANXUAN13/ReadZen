@@ -530,31 +530,39 @@
                                 
                                 <!-- 注册表单 -->
                                 <div v-else key="register" class="space-y-4">
-                                    <input 
-                                        v-model="regForm.username"
-                                        type="text"
-                                        placeholder="设置用户名"
-                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                    />
-                                    <input 
-                                        v-model="regForm.password"
-                                        type="password"
-                                        placeholder="设置登录密码"
-                                        @keyup.enter="doRegister"
-                                        class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                        :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                    />
-                                    <div class="flex gap-3">
-                                        <input 
-                                            v-model="regForm.captcha"
-                                            type="text"
-                                            placeholder="验证码"
-                                            maxlength="4"
-                                            @keyup.enter="doRegister"
-                                            class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
-                                            :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
-                                        />
+                                <input 
+                                    v-model="regForm.username"
+                                    type="text"
+                                    placeholder="设置用户名"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <input 
+                                    v-model="regForm.password"
+                                    type="password"
+                                    placeholder="设置登录密码"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <input 
+                                    v-model="regForm.confirm_password"
+                                    type="password"
+                                    placeholder="确认密码"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <div class="flex gap-3">
+                                <input 
+                                    v-model="regForm.captcha"
+                                    type="text"
+                                    placeholder="验证码"
+                                    maxlength="4"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
                                         <div class="relative group cursor-pointer flex-shrink-0" @click="refreshCaptcha">
                                             <div class="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-xl transition-all flex items-center justify-center overflow-hidden z-10">
                                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 opacity-0 group-hover:opacity-100 rotate-0 group-hover:rotate-180 transition-all duration-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -684,8 +692,14 @@
                                          一键收藏全部
                                      </button>
                                  </div>
-                             </div>
-                             <div class="space-y-3">
+                              </div>
+                              <button 
+                                  @click="clearUploaded"
+                                  :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-1', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-red-500 hover:bg-red-600 text-white']"
+                              >
+                                  清空上传列表
+                              </button>
+                              <div class="space-y-3">
                                  <div 
                                      v-for="item in uploadedArticles" 
                                      :key="item.id"
@@ -1394,7 +1408,7 @@
                         alert('收藏失败，请重试');
                     }
                 };
-                
+
                 // 批量下载收藏文章
                 const downloadFavoritesZip = async () => {
                     if (favoriteArticles.value.length === 0) {
@@ -1438,6 +1452,32 @@
                         console.error('加载收藏失败:', e);
                     }
                 };
+
+                // 一键清空上传列表
+                const clearUploaded = async () => {
+                    if (!uploadedArticles.value || uploadedArticles.value.length === 0) {
+                        alert('没有可清空的上传文章');
+                        return;
+                    }
+                    if (!confirm('确定要清空上传列表吗？该操作不可撤销。')) return;
+                    try {
+                        const res = await fetch('/api/uploaded/clear', {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            uploadedArticles.value = [];
+                            showToast(`已清空 ${data.count || 0} 篇文章`, 'success');
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '清空失败');
+                        }
+                    } catch (e) {
+                        console.error('清空上传列表失败:', e);
+                        alert('清空失败，请稍后重试');
+                    }
+                };
                 
                 
                 // 认证相关状态
@@ -1445,7 +1485,7 @@
                 const showAuth = ref(false);
                 const authMode = ref('login');
                 const loginForm = reactive({ username: '', password: '', captcha: '' });
-                const regForm = reactive({ username: '', password: '', captcha: '' });
+                const regForm = reactive({ username: '', password: '', confirm_password: '', captcha: '' });
                 const captchaImage = ref('');
                 
                 // 获取验证码图片
@@ -1517,12 +1557,18 @@
                 
                 // 注册
                 const doRegister = async () => {
+                    // 客户端校验：密码两次输入是否一致
+                    if (regForm.password !== regForm.confirm_password) {
+                        showToast('两次输入的密码不一致', 'error');
+                        return;
+                    }
                     const resp = await fetch('/api/auth/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             username: regForm.username, 
                             password: regForm.password,
+                            confirm_password: regForm.confirm_password,
                             captcha: regForm.captcha 
                         }),
                         credentials: 'include'
@@ -1764,21 +1810,25 @@
 
                         if (isTextFile && !file.name.startsWith('.') && file.size > 0) {
                             const reader = new FileReader();
-                            reader.onload = (e) => {
-                                const content = e.target.result;
-                                const lines = content.split('\n');
-                                let title = file.name.replace(/\.(txt|md|text|log|htm|html|article)$/i, '');
-                                let author = '未知作者';
-                                let articleContent = content;
+                                reader.onload = (e) => {
+                                    const content = e.target.result;
+                                    const lines = content.split('\n');
+                                    let title = file.name.replace(/\.(txt|md|text|log|htm|html|article)$/i, '');
+                                    let author = '未知作者';
+                                    let articleContent = content;
 
-                                // 尝试从文件内容中提取标题和作者
-                                if (lines.length > 0 && lines[0].trim()) {
-                                    // 如果第一行比较短（小于100字符），把它作为标题
-                                    const firstLine = lines[0].trim();
-                                    if (firstLine.length < 100 && !firstLine.startsWith('<')) {
-                                        title = firstLine;
+                                    // 尝试从文件内容中提取标题和作者
+                                    if (lines.length > 0 && lines[0].trim()) {
+                                        // 如果第一行比较短（小于100字符），把它作为标题
+                                        let firstLineRaw = lines[0].trim();
+                                        if (firstLineRaw.length < 100 && !firstLineRaw.startsWith('<')) {
+                                            // 去掉前缀标识，如 "标题: 狗难" -> "狗难"
+                                            let firstLine = firstLineRaw.replace(/^(标题|Title|题名)[:：]\s*/i, '');
+                                            if (firstLine.length > 0) {
+                                                title = firstLine;
+                                            }
+                                        }
                                     }
-                                }
                                 if (lines.length > 1) {
                                     const authorLine = lines[1].trim();
                                     if (authorLine.startsWith('作者：') || authorLine.startsWith('作者:') || 
@@ -2254,7 +2304,8 @@
                          isItemFavorited,
                          addAllToFavorites,
                          downloadFavoritesZip,
-                         saveUploadedArticle,
+                          saveUploadedArticle,
+                          clearUploaded,
                          deleteUploadedArticle,
                          downloadUploadedArticle,
                          downloadUploadedZip,

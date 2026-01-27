@@ -200,3 +200,20 @@ def delete_uploaded_article(article_id):
     conn.execute("DELETE FROM uploaded_articles WHERE id = ?", (article_id,))
     conn.commit()
     conn.close()
+
+def delete_all_uploaded_articles():
+    """删除所有已上传的文章，并返回被删除的数量（若数据库不返回精确删除数，则返回前的计数）"""
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT COUNT(*) FROM uploaded_articles")
+        count = cur.fetchone()[0]
+        cur.execute("DELETE FROM uploaded_articles")
+        conn.commit()
+    except Exception:
+        count = 0
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+    return count
