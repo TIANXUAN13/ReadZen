@@ -70,6 +70,88 @@ def strip_header_lines(text: str) -> str:
 captcha_generator = ImageCaptcha(width=160, height=60)
 
 
+def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: str = '#374151'):
+    """生成自定义背景色的验证码图片"""
+    from PIL import Image, ImageDraw, ImageFont
+    import random
+    
+    # 图片尺寸：匹配前端容器尺寸（包含边框）
+    # 容器：152px × 48px，减去边框4px得到内部区域
+    width, height = 152, 48
+    img = Image.new('RGB', (width, height), bg_color)
+    draw = ImageDraw.Draw(img)
+    
+    # 字体设置
+    try:
+        font = ImageFont.truetype("arial.ttf", 24)
+    except:
+        try:
+            font = ImageFont.load_default()
+        except:
+            font = None
+    
+    # 添加干扰线
+    for _ in range(2):
+        x1 = random.randint(0, width - 1)
+        y1 = random.randint(0, height - 1)
+        x2 = random.randint(0, width - 1)
+        y2 = random.randint(0, height - 1)
+        draw.line([(x1, y1), (x2, y2)], fill=text_color, width=1)
+    
+    # 添加干扰点
+    for _ in range(15):
+        x = random.randint(0, width - 1)
+        y = random.randint(0, height - 1)
+        draw.point((x, y), fill=text_color)
+    
+    # 动态计算字符布局，确保完全填充
+    n_chars = len(code)
+    
+    # 使用极小的边距，让字符充分利用空间
+    margin = 8
+    available_width = width - 2 * margin
+    char_width = available_width // n_chars if n_chars > 0 else available_width
+    
+    # 绘制验证码文字，完全填充整个可用宽度
+    for i, char in enumerate(code):
+        # 计算字符基础位置
+        base_x = margin + i * char_width
+        
+        # 添加微小随机偏移（减少以保持填充效果）
+        x = base_x + random.randint(-1, 1)
+        
+        # 垂直居中，加上微小偏移
+        if font:
+            try:
+                # 获取字符实际大小以进行精确居中
+                bbox = draw.textbbox((0, 0), char, font=font)
+                char_width_actual = bbox[2] - bbox[0]
+                char_height_actual = bbox[3] - bbox[1]
+                
+                # 水平居中在字符格子内
+                x_offset = (char_width - char_width_actual) // 2
+                x = base_x + x_offset + random.randint(-1, 1)
+                
+                # 垂直居中在整个图片内
+                y = (height - char_height_actual) // 2 + random.randint(-2, 2)
+                
+                draw.text((x, y), char, fill=text_color, font=font)
+            except:
+                # 降级处理
+                x = base_x + random.randint(-1, 1)
+                y = (height - 20) // 2 + random.randint(-2, 2)
+                draw.text((x, y), char, fill=text_color, font=font)
+        else:
+            x = base_x + random.randint(-1, 1)
+            y = (height - 20) // 2 + random.randint(-2, 2)
+            draw.text((x, y), char, fill=text_color)
+    
+    # 转换为字节流
+    img_byte_arr = io.BytesIO()
+    img.save(img_byte_arr, format='PNG')
+    return img_byte_arr.getvalue()
+
+
 @app.route("/api/captcha", methods=["GET"])
 def get_captcha():
     """生成并返回验证码图片"""
@@ -79,9 +161,8 @@ def get_captcha():
     session["captcha"] = captcha_code
     session["captcha_time"] = datetime.now().timestamp()
 
-    # 生成验证码图片
-    image = captcha_generator.generate(captcha_code)
-    image_data = image.getvalue()
+    # 生成自定义验证码图片（使用主题色）
+    image_data = generate_custom_captcha(captcha_code, bg_color='#fdfbf7', text_color='#374151')
 
     # 返回base64编码的图片
     return jsonify(

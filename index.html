@@ -437,7 +437,7 @@
             <!-- 登录/注册弹窗 -->
             <transition name="toast">
                 <div v-if="showAuth" class="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" @click.self="showAuth = false">
-                    <div :class="['w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden glass-panel border transition-all duration-300', backgroundColor === 'dark' ? 'bg-gray-900/80 border-gray-700' : 'bg-white/90 border-white']">
+                    <div :class="['w-full max-w-md rounded-3xl shadow-2xl overflow-hidden glass-panel border transition-all duration-300', backgroundColor === 'dark' ? 'bg-gray-900/80 border-gray-700' : 'bg-white/90 border-white']">
                         <!-- 弹窗头部 -->
                         <div class="p-6 pb-0 flex justify-between items-center">
                             <div class="flex flex-col">
@@ -501,7 +501,7 @@
                                         class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                         :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                     />
-                                    <div class="flex gap-3">
+<div class="flex gap-2">
                                         <input 
                                             v-model="loginForm.captcha"
                                             type="text"
@@ -517,8 +517,8 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </div>
-                                            <img v-if="captchaImage" :src="captchaImage" class="w-32 h-11 rounded-xl border-2 object-contain bg-white shadow-sm" />
-                                            <div v-else class="w-32 h-11 rounded-xl border flex items-center justify-center animate-pulse bg-gray-100">
+                                            <img v-if="captchaImage" :src="captchaImage" class="w-[152px] h-[48px] rounded-xl border-2 object-cover shadow-sm" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'" />
+                                            <div v-else class="w-36 h-11 rounded-xl border flex items-center justify-center animate-pulse" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'">
                                                 <div class="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                             </div>
                                         </div>
@@ -553,7 +553,7 @@
                                     class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                     :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                 />
-                                <div class="flex gap-3">
+<div class="flex gap-2">
                                 <input 
                                     v-model="regForm.captcha"
                                     type="text"
@@ -569,8 +569,8 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </div>
-                                            <img v-if="captchaImage" :src="captchaImage" class="w-32 h-11 rounded-xl border-2 object-contain bg-white shadow-sm" />
-                                            <div v-else class="w-32 h-11 rounded-xl border flex items-center justify-center animate-pulse bg-gray-100">
+                                            <img v-if="captchaImage" :src="captchaImage" class="w-[152px] h-[48px] rounded-xl border-2 object-cover shadow-sm" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'" />
+                                            <div v-else class="w-36 h-11 rounded-xl border flex items-center justify-center animate-pulse" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'">
                                                 <div class="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                                             </div>
                                         </div>
