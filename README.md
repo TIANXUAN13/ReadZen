@@ -51,23 +51,7 @@ docker-compose up -d
 
 ### 本地开发运行
 
-```bash
-# 1. 安装依赖
-python -m venv venv
-
-mac python 虚拟环境激活
-source testwaf/bin/activate
-
-windows python 虚拟环境激活:
-venv\Scripts\activate
-
-pip install -r requirements.txt
-
-# 2. 运行服务
-python server.py
-
-# 3. 访问 http://localhost:15000
-```
+[一键部署](https://github.com/TIANXUAN13/ReadZen/blob/test/README_DEPLOY_SYSTEMD.md)
 
 ## 默认账户
 
@@ -83,7 +67,14 @@ python server.py
 默认端口已统一为 `15000`。
 
 ## GitHub Actions
+```bash
+# 1. 安装依赖
+python -m venv venv
 
+mac python 虚拟环境激活
+source testwaf/bin/activate
+
+windows python
 项目已配置 GitHub Actions 自动构建镜像并推送到 Docker Hub。手动触发工作流时可自定义：
 - `branch`: 构建分支
 - `tag`: 镜像标签

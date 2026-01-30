@@ -352,7 +352,7 @@ sudo -u readzen ./venv/bin/pip install --force-reinstall -r requirements.txt
 
 ## 支持与反馈
 
-- **GitHub Issues**: [提交问题](https://github.com/2926930231/ReadZen/issues)
+- **GitHub Issues**: [提交问题](https://github.com/TIANXUAN13/ReadZen/issues)
 - **文档**: [详细文档](README.md)
 
 ---
