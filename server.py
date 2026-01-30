@@ -678,6 +678,7 @@ def download_favorites_zip():
 
 # Daily article proxy
 @app.route("/api/daily", methods=["GET"])
+# 取消速率限制，这是用户获取文章的主要接口
 def daily():
     """获取每日一文"""
     # 备用API列表
