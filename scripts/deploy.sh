@@ -173,15 +173,31 @@ echo -e "\n${GREEN}=================================================${NC}"
 echo -e "${GREEN}🎉 ReadZen 部署完成！${NC}"
 echo -e "${GREEN}=================================================${NC}"
 
-IP_ADDR=$(curl -s https://ifconfig.me || hostname -I | awk '{print $1}')
 PORT=$(grep "PORT=" "$INSTALL_DIR/.env" | cut -d'=' -f2)
 
 echo -e "\n服务状态:"
 systemctl status $PROJECT_NAME --no-pager | grep "Active:"
 
 echo -e "\n访问地址:"
-echo -e "👉 ${YELLOW}http://${IP_ADDR}:${PORT}${NC}"
-echo -e "👉 ${YELLOW}http://localhost:${PORT}${NC}"
+
+PUBLIC_IP=$(curl -s https://ifconfig.me 2>/dev/null || echo "")
+if [ -n "$PUBLIC_IP" ]; then
+    echo -e "👉 ${YELLOW}公网地址: http://${PUBLIC_IP}:${PORT}${NC}"
+fi
+
+
+echo -e "\n局域网地址:"
+if command -v ip &> /dev/null; then
+    ip -4 addr show | grep -E "inet.*scope.*(eth|ens|enp|wlan|wlp)" | awk '{print $2}' | cut -d'/' -f1 | while read -r ip; do
+        echo -e "👉 ${YELLOW}http://${ip}:${PORT}${NC}"
+    done
+elif command -v ifconfig &> /dev/null; then
+    ifconfig | grep -E "inet.*(eth|ens|enp|wlan|wlp)" | awk '{print $2}' | while read -r ip; do
+        echo -e "👉 ${YELLOW}http://${ip}:${PORT}${NC}"
+    done
+else
+    echo -e "${YELLOW}无法获取网卡地址，请使用 ip addr 或 ifconfig 查看${NC}"
+fi
 
 echo -e "\n常用命令:"
 echo "- 查看日志: sudo journalctl -u $PROJECT_NAME -f"
