@@ -51,23 +51,8 @@ docker-compose up -d
 
 ### 本地开发运行
 
-```bash
-# 1. 安装依赖
-python -m venv venv
+[一键部署]（https://github.com/TIANXUAN13/ReadZen/tree/test）
 
-mac python 虚拟环境激活
-source testwaf/bin/activate
-
-windows python 虚拟环境激活:
-venv\Scripts\activate
-
-pip install -r requirements.txt
-
-# 2. 运行服务
-python server.py
-
-# 3. 访问 http://localhost:15000
-```
 
 ## 默认账户
 
