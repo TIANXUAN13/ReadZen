@@ -51,7 +51,7 @@ docker-compose up -d
 
 ### 本地开发运行
 
-[一键部署]（https://github.com/TIANXUAN13/ReadZen/tree/test）
+[一键部署](https://github.com/TIANXUAN13/ReadZen/tree/test)
 
 
 ## 默认账户
