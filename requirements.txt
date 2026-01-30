@@ -1,5 +1,6 @@
 Flask>=2.0.0
 flask-cors
+flask-limiter>=3.0.0
 requests>=2.25.0
 werkzeug>=2.2.2
 captcha>=0.5.0
