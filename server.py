@@ -678,6 +678,7 @@ def download_favorites_zip():
 
 # Daily article proxy
 @app.route("/api/daily", methods=["GET"])
+@limiter.limit("100 per hour")  # 提高限制以支持健康检查频繁访问
 def daily():
     """获取每日一文"""
     # 备用API列表
