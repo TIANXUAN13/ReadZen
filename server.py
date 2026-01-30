@@ -12,6 +12,8 @@ from io import BytesIO
 from functools import wraps
 from flask import Flask, request, jsonify, session, send_from_directory, send_file
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
 from captcha.image import ImageCaptcha  # 验证码图片生成
@@ -39,9 +41,46 @@ PRELOADED_DB_PATH = "/app/preloaded_data/data.db"
 
 # Docker容器中的预置数据目录路径（仅在容器中有效）
 app = Flask(__name__, static_folder=".")
-app.secret_key = os.environ.get("SECRET_KEY", "super-secret-key")
 
-CORS(app, supports_credentials=True)
+# 生成随机密钥作为 Secret Key（如果没有设置环境变量）
+def generate_secret_key():
+    """生成64字节的随机密钥"""
+    return os.urandom(64).hex()
+
+# 从环境变量获取密钥，如果未设置则生成随机密钥并记录警告
+SECRET_KEY = os.environ.get("SECRET_KEY")
+if not SECRET_KEY:
+    SECRET_KEY = generate_secret_key()
+    print(f"[WARNING] SECRET_KEY not set in environment. Generated random key: {SECRET_KEY}")
+    print("[WARNING] Please set SECRET_KEY environment variable for production to maintain session persistence!")
+
+app.secret_key = SECRET_KEY
+
+# 根据环境变量设置调试模式，生产环境默认禁用
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1", "yes")
+
+# 设置请求体最大大小为 10MB
+app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
+
+# CORS 配置：仅允许同源请求（前端和后端在同一域名下）
+# 如果前端部署在不同域名，需要设置 ALLOWED_ORIGINS 环境变量，多个域名用逗号分隔
+ALLOWED_ORIGINS = os.environ.get("ALLOWED_ORIGINS", "").strip()
+if ALLOWED_ORIGINS:
+    origins_list = [origin.strip() for origin in ALLOWED_ORIGINS.split(",")]
+    CORS(app, supports_credentials=True, origins=origins_list)
+    print(f"[INFO] CORS enabled for origins: {origins_list}")
+else:
+    # 默认允许同源请求
+    CORS(app, supports_credentials=True)
+    print("[INFO] CORS enabled for same-origin requests only")
+
+# 速率限制配置
+limiter = Limiter(
+    app=app,
+    key_func=get_remote_address,
+    default_limits=["200 per day", "50 per hour"],
+    storage_uri="memory://"  # 使用内存存储速率限制
+)
 
 # 工具函数：从文章内容头部移除标题/作者等元信息（可选，防止上传时把元信息当作正文内容）
 def strip_header_lines(text: str) -> str:
@@ -65,6 +104,29 @@ def strip_header_lines(text: str) -> str:
         return text
 
 # --- 验证码系统开始 ---
+
+# 密码强度验证
+def validate_password(password: str) -> tuple[bool, str]:
+    """
+    验证密码强度
+    要求：
+    - 最少8个字符
+    - 至少包含一个字母（大小写均可）
+    - 至少包含一个数字
+    """
+    if not password:
+        return False, "密码不能为空"
+
+    if len(password) < 8:
+        return False, "密码长度至少为8个字符"
+
+    if not re.search(r'[a-zA-Z]', password):
+        return False, "密码必须包含至少一个字母"
+
+    if not re.search(r'\d', password):
+        return False, "密码必须包含至少一个数字"
+
+    return True, ""
 
 # 验证码图片生成器
 captcha_generator = ImageCaptcha(width=160, height=60)
@@ -316,6 +378,7 @@ def index():
 
 # Authentication APIs
 @app.route("/api/auth/register", methods=["POST"])
+@limiter.limit("5 per hour")  # 限制注册接口每小时最多5次请求
 def register():
     data = request.json or {}
     username = data.get("username")
@@ -323,8 +386,22 @@ def register():
     confirm_password = data.get("confirm_password", data.get("password_confirm", ""))
     captcha = data.get("captcha", "").strip().upper()
 
+    # 用户名和密码必填验证
     if not username or not password:
         return jsonify({"error": "username和password是必填项"}), 400
+
+    # 用户名长度限制（3-20个字符）
+    if len(username) < 3 or len(username) > 20:
+        return jsonify({"error": "用户名长度必须在3-20个字符之间"}), 400
+
+    # 用户名格式验证（只允许字母、数字、下划线）
+    if not re.match(r'^[a-zA-Z0-9_]+$', username):
+        return jsonify({"error": "用户名只能包含字母、数字和下划线"}), 400
+
+    # 密码强度验证
+    is_valid, error_msg = validate_password(password)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
 
     # 校验两次输入的密码是否一致
     if confirm_password != password:
@@ -359,6 +436,7 @@ def register():
 
 
 @app.route("/api/auth/login", methods=["POST"])
+@limiter.limit("30 per hour")  # 限制登录接口每小时最多30次请求（有验证码保护，可适当放宽）
 def login():
     data = request.json or {}
     username = data.get("username")
@@ -406,6 +484,7 @@ def logout():
 
 
 @app.route("/api/auth/change-password", methods=["POST"])
+@limiter.limit("5 per hour")  # 限制修改密码接口每小时最多5次请求
 def change_password():
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
@@ -414,6 +493,12 @@ def change_password():
     new_password = data.get("new_password")
     if not old_password or not new_password:
         return jsonify({"error": "old_password and new_password are required"}), 400
+
+    # 验证新密码强度
+    is_valid, error_msg = validate_password(new_password)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
+
     user_id = session["user_id"]
     user = get_user_by_username(session["username"])
     if not user or not check_password_hash(user["password"], old_password):
@@ -676,4 +761,5 @@ with app.app_context():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 15000))
     host = os.environ.get("HOST", "0.0.0.0")
-    app.run(host=host, port=port, debug=True)
+    # 使用环境变量控制调试模式，生产环境默认禁用
+    app.run(host=host, port=port, debug=DEBUG_MODE)
