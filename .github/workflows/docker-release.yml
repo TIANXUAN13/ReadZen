@@ -21,7 +21,21 @@ permissions:
   packages: write
 
 jobs:
+  check-permission:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check if user is repository owner
+        run: |
+          if [ "${{ github.actor }}" != "${{ github.repository_owner }}" ]; then
+            echo "❌ 错误：只有仓库所有者才能触发此工作流"
+            echo "当前用户: ${{ github.actor }}"
+            echo "仓库所有者: ${{ github.repository_owner }}"
+            exit 1
+          fi
+          echo "✅ 权限验证通过：${{ github.actor }} 是仓库所有者"
+
   build:
+    needs: check-permission
     runs-on: ubuntu-latest
     permissions:
       contents: write
