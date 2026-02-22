@@ -137,20 +137,34 @@ def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: st
     from PIL import Image, ImageDraw, ImageFont
     import random
     
-    # 图片尺寸：匹配前端容器尺寸（包含边框）
-    # 容器：152px × 48px，减去边框4px得到内部区域
-    width, height = 152, 48
+    width, height = 176, 56
     img = Image.new('RGB', (width, height), bg_color)
     draw = ImageDraw.Draw(img)
     
-    # 字体设置
-    try:
-        font = ImageFont.truetype("arial.ttf", 24)
-    except:
+    font_size = 32
+    font = None
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "arial.ttf",
+    ]
+    for font_path in font_paths:
         try:
-            font = ImageFont.load_default()
+            font = ImageFont.truetype(font_path, font_size)
+            break
         except:
-            font = None
+            continue
+    
+    if font is None:
+        try:
+            font = ImageFont.load_default(size=font_size)
+        except:
+            try:
+                font = ImageFont.load_default()
+            except:
+                font = None
     
     # 添加干扰线
     for _ in range(2):
@@ -169,8 +183,7 @@ def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: st
     # 动态计算字符布局，确保完全填充
     n_chars = len(code)
     
-    # 使用极小的边距，让字符充分利用空间
-    margin = 8
+    margin = 10
     available_width = width - 2 * margin
     char_width = available_width // n_chars if n_chars > 0 else available_width
     
