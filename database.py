@@ -25,6 +25,7 @@ def init_db():
            id INTEGER PRIMARY KEY AUTOINCREMENT,
            username TEXT UNIQUE NOT NULL,
            password TEXT NOT NULL,
+           email TEXT,
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )"""
     )
@@ -40,7 +41,6 @@ def init_db():
            FOREIGN KEY(user_id) REFERENCES users(id)
         )"""
     )
-    # 上传的文章存储表 - 使用 BLOB 存储中文内容确保编码正确
     cur.execute(
         """CREATE TABLE IF NOT EXISTS uploaded_articles (
            id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,6 +52,33 @@ def init_db():
            date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )"""
     )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS system_config (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           config_key TEXT UNIQUE NOT NULL,
+           config_value TEXT,
+           description TEXT,
+           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )"""
+    )
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS password_resets (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           user_id INTEGER,
+           email TEXT NOT NULL,
+           code TEXT NOT NULL,
+           expires_at TIMESTAMP NOT NULL,
+           used INTEGER DEFAULT 0,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY(user_id) REFERENCES users(id)
+        )"""
+    )
+    
+    cur.execute("PRAGMA table_info(users)")
+    columns = [col[1] for col in cur.fetchall()]
+    if 'email' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    
     conn.commit()
     conn.close()
 
@@ -217,3 +244,141 @@ def delete_all_uploaded_articles():
         cur.close()
         conn.close()
     return count
+
+
+def get_config(key, default=None):
+    """获取系统配置"""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT config_value FROM system_config WHERE config_key = ?", (key,)
+    ).fetchone()
+    conn.close()
+    return row["config_value"] if row else default
+
+
+def set_config(key, value, description=None):
+    """设置系统配置"""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO system_config (config_key, config_value, description, updated_at)
+           VALUES (?, ?, ?, datetime('now'))
+           ON CONFLICT(config_key) DO UPDATE SET 
+           config_value = excluded.config_value,
+           description = COALESCE(excluded.description, description),
+           updated_at = datetime('now')""",
+        (key, value, description)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_smtp_config():
+    """获取 SMTP 配置"""
+    config_keys = [
+        'smtp_server', 'smtp_port', 'smtp_username', 'smtp_password',
+        'smtp_from_name', 'smtp_from_email', 'smtp_use_ssl', 'smtp_use_tls', 'smtp_enabled'
+    ]
+    config = {}
+    for key in config_keys:
+        value = get_config(key)
+        if value is not None:
+            config[key] = value
+    return config
+
+
+def update_smtp_config(config_dict):
+    """更新 SMTP 配置"""
+    descriptions = {
+        'smtp_server': 'SMTP服务器地址',
+        'smtp_port': 'SMTP端口',
+        'smtp_username': 'SMTP用户名',
+        'smtp_password': 'SMTP密码',
+        'smtp_from_name': '发件人名称',
+        'smtp_from_email': '发件人邮箱',
+        'smtp_use_ssl': '使用SSL',
+        'smtp_use_tls': '使用TLS',
+        'smtp_enabled': '启用SMTP'
+    }
+    for key, value in config_dict.items():
+        set_config(key, value, descriptions.get(key))
+
+
+def get_user_by_email(email):
+    """通过邮箱获取用户"""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM users WHERE email = ?", (email,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_user_email(user_id, email):
+    """更新用户邮箱"""
+    conn = get_conn()
+    conn.execute(
+        "UPDATE users SET email = ? WHERE id = ?", (email, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_user_password(user_id, new_password):
+    """更新用户密码"""
+    hashed = generate_password_hash(new_password)
+    conn = get_conn()
+    conn.execute(
+        "UPDATE users SET password = ? WHERE id = ?", (hashed, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def create_password_reset(email, code, expires_at, user_id=None):
+    """创建密码重置记录"""
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO password_resets (user_id, email, code, expires_at)
+           VALUES (?, ?, ?, ?)""",
+        (user_id, email, code, expires_at)
+    )
+    conn.commit()
+    reset_id = cur.lastrowid
+    conn.close()
+    return reset_id
+
+
+def get_valid_password_reset(email, code):
+    """获取有效的密码重置记录"""
+    conn = get_conn()
+    row = conn.execute(
+        """SELECT * FROM password_resets 
+           WHERE email = ? AND code = ? AND used = 0 
+           AND expires_at > datetime('now')
+           ORDER BY created_at DESC LIMIT 1""",
+        (email, code)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def mark_password_reset_used(reset_id):
+    """标记密码重置记录为已使用"""
+    conn = get_conn()
+    conn.execute(
+        "UPDATE password_resets SET used = 1 WHERE id = ?", (reset_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def cleanup_expired_resets():
+    """清理过期的密码重置记录"""
+    conn = get_conn()
+    conn.execute(
+        "DELETE FROM password_resets WHERE expires_at < datetime('now') OR used = 1"
+    )
+    conn.commit()
+    conn.close()

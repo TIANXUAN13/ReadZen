@@ -526,6 +526,14 @@
                                     <button @click="doLogin" class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]">
                                         立即登录
                                     </button>
+                                    <div class="text-center mt-3">
+                                        <button 
+                                            @click="openForgotPassword"
+                                            :class="['text-sm hover:underline', backgroundColor === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600']"
+                                        >
+                                            忘记密码？
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <!-- 注册表单 -->
@@ -580,6 +588,120 @@
                                     </button>
                                 </div>
                             </transition>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+            
+            <!-- 忘记密码弹窗 -->
+            <transition name="toast">
+                <div v-if="showForgotPassword" class="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" @click.self="showForgotPassword = false">
+                    <div :class="['w-full max-w-md rounded-3xl shadow-2xl overflow-hidden glass-panel border transition-all duration-300', backgroundColor === 'dark' ? 'bg-gray-900/80 border-gray-700' : 'bg-white/90 border-white']">
+                        <div class="p-6 pb-0 flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <h3 :class="['text-xl font-bold tracking-tight', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                                    找回密码
+                                </h3>
+                                <p class="text-xs opacity-50 mt-1">
+                                    通过邮箱验证码重置密码
+                                </p>
+                            </div>
+                            <button @click="showForgotPassword = false" :class="['p-2 rounded-full hover:bg-black/10 transition-colors', backgroundColor === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-400']">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6">
+                            <!-- SMTP 未配置时的提示 -->
+                            <div v-if="!smtpEnabled" class="text-center py-6">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <p :class="['text-sm mb-2', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">邮件服务未启用</p>
+                                <p :class="['text-xs opacity-60', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                                    请联系管理员重置密码
+                                </p>
+                                <p v-if="smtpInfo.admin_email" :class="['text-xs mt-2', backgroundColor === 'dark' ? 'text-blue-400' : 'text-blue-500']">
+                                    管理员邮箱: {{ smtpInfo.admin_email }}
+                                </p>
+                            </div>
+                            
+                            <!-- SMTP 已配置时的表单 -->
+                            <div v-else>
+                                <!-- 步骤1: 输入邮箱 -->
+                                <div v-if="forgotStep === 1">
+                                    <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">注册邮箱</label>
+                                    <input 
+                                        v-model="forgotEmail"
+                                        type="email"
+                                        placeholder="请输入注册时使用的邮箱"
+                                        :class="['w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner', backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <button 
+                                        @click="sendResetCode"
+                                        :disabled="!forgotEmail || sendingCode"
+                                        :class="['w-full mt-4 py-3 rounded-xl text-sm font-bold text-white transition-all', (!forgotEmail || sendingCode) ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 active:scale-[0.98]']"
+                                    >
+                                        {{ sendingCode ? '发送中...' : '发送验证码' }}
+                                    </button>
+                                </div>
+                                
+                                <!-- 步骤2: 输入验证码和新密码 -->
+                                <div v-else-if="forgotStep === 2">
+                                    <div class="text-center mb-4">
+                                        <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">
+                                            验证码已发送至 <span :class="['font-medium', backgroundColor === 'dark' ? 'text-blue-400' : 'text-blue-500']">{{ forgotEmail }}</span>
+                                        </p>
+                                    </div>
+                                    <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">验证码</label>
+                                    <input 
+                                        v-model="forgotCode"
+                                        type="text"
+                                        maxlength="6"
+                                        placeholder="请输入6位验证码"
+                                        :class="['w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner', backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <label :class="['block text-sm font-medium mb-1 mt-3', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">新密码</label>
+                                    <input 
+                                        v-model="forgotNewPassword"
+                                        type="password"
+                                        placeholder="请设置新密码 (至少6位)"
+                                        :class="['w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner', backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <div class="flex gap-2 mt-4">
+                                        <button 
+                                            @click="forgotStep = 1"
+                                            :class="['flex-1 py-3 rounded-xl text-sm font-medium border transition-colors', backgroundColor === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50']"
+                                        >
+                                            返回
+                                        </button>
+                                        <button 
+                                            @click="resetPassword"
+                                            :disabled="!forgotCode || !forgotNewPassword || forgotNewPassword.length < 6 || resettingPassword"
+                                            :class="['flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all', (!forgotCode || !forgotNewPassword || forgotNewPassword.length < 6 || resettingPassword) ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 active:scale-[0.98]']"
+                                        >
+                                            {{ resettingPassword ? '重置中...' : '重置密码' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- 步骤3: 成功 -->
+                                <div v-else-if="forgotStep === 3" class="text-center py-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p :class="['text-lg font-medium mb-2', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">密码重置成功！</p>
+                                    <p :class="['text-sm opacity-60 mb-4', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">请使用新密码登录</p>
+                                    <button 
+                                        @click="closeForgotPassword"
+                                        :class="['px-6 py-2 rounded-xl text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors']"
+                                    >
+                                        去登录
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -734,12 +856,12 @@
                                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                  </svg>
-                                             </button>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
+                                              </button>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
 
                          <!-- 本次选择的本地文件 -->
                          <div v-if="localArticles.length > 0">
@@ -825,9 +947,93 @@
                                       </div>
                                   </div>
                               </div>
+                              
+                              <!-- SMTP 配置区域 -->
+                              <div :class="['mt-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                  <div class="flex justify-between items-center mb-4">
+                                      <div>
+                                          <h3 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">邮件服务配置</h3>
+                                          <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">用于密码找回功能</p>
+                                      </div>
+                                      <div class="flex items-center gap-2">
+                                          <span :class="['text-sm', smtpConfig.smtp_enabled === 'true' ? 'text-green-500' : 'text-gray-400']">
+                                              {{ smtpConfig.smtp_enabled === 'true' ? '已启用' : '未启用' }}
+                                          </span>
+                                          <button 
+                                              @click="smtpConfig.smtp_enabled = smtpConfig.smtp_enabled === 'true' ? 'false' : 'true'"
+                                              :class="['relative w-12 h-6 rounded-full transition-colors', smtpConfig.smtp_enabled === 'true' ? 'bg-green-500' : (backgroundColor === 'dark' ? 'bg-gray-600' : 'bg-gray-300')]"
+                                          >
+                                              <span :class="['absolute top-1 w-4 h-4 rounded-full bg-white transition-all', smtpConfig.smtp_enabled === 'true' ? 'right-1' : 'left-1']"></span>
+                                          </button>
+                                      </div>
+                                  </div>
+                                  
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">SMTP 服务器</label>
+                                          <input v-model="smtpConfig.smtp_server" type="text" placeholder="smtp.gmail.com" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">端口</label>
+                                          <input v-model="smtpConfig.smtp_port" type="text" placeholder="587" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">用户名 (邮箱)</label>
+                                          <input v-model="smtpConfig.smtp_username" type="text" placeholder="your@email.com" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">密码/授权码</label>
+                                          <input v-model="smtpConfig.smtp_password" type="password" placeholder="••••••••" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">发件人名称</label>
+                                          <input v-model="smtpConfig.smtp_from_name" type="text" placeholder="ReadZen" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">发件人邮箱</label>
+                                          <input v-model="smtpConfig.smtp_from_email" type="text" placeholder="noreply@example.com" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                  </div>
+                                  
+                                  <div class="flex flex-wrap gap-4 mt-4">
+                                      <label class="flex items-center gap-2 cursor-pointer">
+                                          <input type="checkbox" v-model="smtpConfigTls" class="w-4 h-4 rounded" />
+                                          <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">使用 TLS</span>
+                                      </label>
+                                      <label class="flex items-center gap-2 cursor-pointer">
+                                          <input type="checkbox" v-model="smtpConfigSsl" class="w-4 h-4 rounded" />
+                                          <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">使用 SSL</span>
+                                      </label>
+                                  </div>
+                                  
+                                  <div class="flex flex-col sm:flex-row gap-2 mt-4">
+                                      <button @click="saveSmtpConfig" :disabled="savingSmtp" :class="['px-4 py-2 rounded-lg text-sm font-medium', savingSmtp ? 'opacity-50 cursor-not-allowed' : '', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']">
+                                          {{ savingSmtp ? '保存中...' : '保存配置' }}
+                                      </button>
+                                      <button @click="testSmtpConfig" :disabled="testingSmtp" :class="['px-4 py-2 rounded-lg text-sm font-medium border', testingSmtp ? 'opacity-50 cursor-not-allowed' : '', backgroundColor === 'dark' ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700']">
+                                          {{ testingSmtp ? '发送中...' : '发送测试邮件' }}
+                                      </button>
+                                  </div>
+                              </div>
+                              
+                              <!-- 管理员重置密码区域 -->
+                              <div :class="['mt-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                  <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">管理员重置密码</h3>
+                                  <p :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">当用户忘记密码且未配置邮件服务时，可在此手动重置</p>
+                                  <div class="flex flex-col sm:flex-row gap-2">
+                                      <select v-model="resetPasswordUserId" :class="['flex-1 px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']">
+                                          <option value="">选择用户</option>
+                                          <option v-for="u in allUsers.filter(u => u.id !== user.id)" :key="u.id" :value="u.id">{{ u.username }}</option>
+                                      </select>
+                                      <input v-model="resetPasswordNew" type="password" placeholder="新密码" :class="['flex-1 px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      <button @click="adminResetPassword" :disabled="!resetPasswordUserId || !resetPasswordNew" :class="['px-4 py-2 rounded-lg text-sm font-medium', (!resetPasswordUserId || !resetPasswordNew) ? 'opacity-50 cursor-not-allowed' : '', backgroundColor === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white']">
+                                          重置密码
+                                      </button>
+                                  </div>
+                              </div>
                           </div>
-                       </div>
-                   </div>
+                      </div>
+                  </div>
 
                   <!-- 用户管理页面 (仅 admin 可见) -->
                   <div v-else-if="activeTab === 'admin'" class="h-full overflow-y-auto p-6">
@@ -2166,6 +2372,212 @@
                         alert('删除用户失败');
                     }
                 };
+                
+                // SMTP 配置相关
+                const smtpConfig = reactive({
+                    smtp_server: '',
+                    smtp_port: '587',
+                    smtp_username: '',
+                    smtp_password: '',
+                    smtp_from_name: 'ReadZen',
+                    smtp_from_email: '',
+                    smtp_use_ssl: 'false',
+                    smtp_use_tls: 'true',
+                    smtp_enabled: 'false'
+                });
+                const smtpConfigTls = computed({
+                    get: () => smtpConfig.smtp_use_tls === 'true',
+                    set: (val) => smtpConfig.smtp_use_tls = val ? 'true' : 'false'
+                });
+                const smtpConfigSsl = computed({
+                    get: () => smtpConfig.smtp_use_ssl === 'true',
+                    set: (val) => smtpConfig.smtp_use_ssl = val ? 'true' : 'false'
+                });
+                const savingSmtp = ref(false);
+                const testingSmtp = ref(false);
+                
+                const loadSmtpConfig = async () => {
+                    if (!user.value || user.value.username !== 'admin') return;
+                    try {
+                        const res = await fetch('/api/admin/smtp', { credentials: 'include' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            Object.keys(data).forEach(key => {
+                                if (key in smtpConfig) {
+                                    smtpConfig[key] = data[key] || '';
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error('加载SMTP配置失败:', e);
+                    }
+                };
+                
+                const saveSmtpConfig = async () => {
+                    savingSmtp.value = true;
+                    try {
+                        const res = await fetch('/api/admin/smtp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(smtpConfig),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            showToast('SMTP配置已保存', 'success');
+                        } else {
+                            const err = await res.json();
+                            showToast(err.error || '保存失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('保存失败', 'error');
+                    } finally {
+                        savingSmtp.value = false;
+                    }
+                };
+                
+                const testSmtpConfig = async () => {
+                    const email = prompt('请输入测试邮箱地址：');
+                    if (!email) return;
+                    
+                    testingSmtp.value = true;
+                    try {
+                        const res = await fetch('/api/admin/smtp/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email }),
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '测试邮件已发送', 'success');
+                        } else {
+                            showToast(data.error || '发送失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('发送失败', 'error');
+                    } finally {
+                        testingSmtp.value = false;
+                    }
+                };
+                
+                // 管理员重置用户密码
+                const resetPasswordUserId = ref('');
+                const resetPasswordNew = ref('');
+                
+                const adminResetPassword = async () => {
+                    if (!resetPasswordUserId.value || !resetPasswordNew.value) return;
+                    if (!confirm('确定要重置该用户的密码吗？')) return;
+                    
+                    try {
+                        const res = await fetch(`/api/admin/reset-password/${resetPasswordUserId.value}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: resetPasswordNew.value }),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            showToast('密码已重置', 'success');
+                            resetPasswordUserId.value = '';
+                            resetPasswordNew.value = '';
+                        } else {
+                            const err = await res.json();
+                            showToast(err.error || '重置失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('重置失败', 'error');
+                    }
+                };
+                
+                // 忘记密码相关
+                const showForgotPassword = ref(false);
+                const smtpEnabled = ref(false);
+                const smtpInfo = ref({});
+                const forgotStep = ref(1);
+                const forgotEmail = ref('');
+                const forgotCode = ref('');
+                const forgotNewPassword = ref('');
+                const sendingCode = ref(false);
+                const resettingPassword = ref(false);
+                
+                const checkSmtpEnabled = async () => {
+                    try {
+                        const res = await fetch('/api/auth/check-smtp');
+                        const data = await res.json();
+                        smtpEnabled.value = data.enabled;
+                        smtpInfo.value = data;
+                    } catch (e) {
+                        smtpEnabled.value = false;
+                    }
+                };
+                
+                const openForgotPassword = async () => {
+                    await checkSmtpEnabled();
+                    forgotStep.value = 1;
+                    forgotEmail.value = '';
+                    forgotCode.value = '';
+                    forgotNewPassword.value = '';
+                    showForgotPassword.value = true;
+                };
+                
+                const closeForgotPassword = () => {
+                    showForgotPassword.value = false;
+                    authMode.value = 'login';
+                    showAuth.value = true;
+                };
+                
+                const sendResetCode = async () => {
+                    if (!forgotEmail.value) return;
+                    
+                    sendingCode.value = true;
+                    try {
+                        const res = await fetch('/api/auth/forgot-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: forgotEmail.value }),
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '验证码已发送', 'success');
+                            forgotStep.value = 2;
+                        } else {
+                            showToast(data.error || '发送失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('发送失败', 'error');
+                    } finally {
+                        sendingCode.value = false;
+                    }
+                };
+                
+                const resetPassword = async () => {
+                    if (!forgotCode.value || !forgotNewPassword.value) return;
+                    
+                    resettingPassword.value = true;
+                    try {
+                        const res = await fetch('/api/auth/reset-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: forgotEmail.value,
+                                code: forgotCode.value,
+                                password: forgotNewPassword.value
+                            }),
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '密码重置成功', 'success');
+                            forgotStep.value = 3;
+                        } else {
+                            showToast(data.error || '重置失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('重置失败', 'error');
+                    } finally {
+                        resettingPassword.value = false;
+                    }
+                };
 
                 // 修改密码相关
                 const showChangePassword = ref(false);
@@ -2235,6 +2647,7 @@
                 watch(() => activeTab.value, (newTab) => {
                     if (newTab === 'admin') {
                         loadAllUsers();
+                        loadSmtpConfig();
                     }
                 });
 
@@ -2348,9 +2761,36 @@
                           viewLocalArticle,
                          selectFolder,
                          selectSingleFile,
-                         isSidebarCollapsed,
-                         handleArticleScroll
-                 };
+isSidebarCollapsed,
+                          handleArticleScroll,
+                          // SMTP 配置
+                          smtpConfig,
+                          smtpConfigTls,
+                          smtpConfigSsl,
+                          savingSmtp,
+                          testingSmtp,
+                          loadSmtpConfig,
+                          saveSmtpConfig,
+                          testSmtpConfig,
+                          // 管理员重置密码
+                          resetPasswordUserId,
+                          resetPasswordNew,
+                          adminResetPassword,
+                          // 忘记密码
+                          showForgotPassword,
+                          smtpEnabled,
+                          smtpInfo,
+                          forgotStep,
+                          forgotEmail,
+                          forgotCode,
+                          forgotNewPassword,
+                          sendingCode,
+                          resettingPassword,
+                          openForgotPassword,
+                          closeForgotPassword,
+                          sendResetCode,
+                          resetPassword
+                  };
             }
         }).mount('#app');
         </script>

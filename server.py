@@ -21,6 +21,7 @@ from captcha.image import ImageCaptcha  # 验证码图片生成
 # 导入数据库函数
 from database import (
     init_db,
+    get_conn,
     get_user_by_username,
     create_user,
     verify_user,
@@ -35,6 +36,16 @@ from database import (
     delete_all_uploaded_articles,
     DATA_DIR,
     DB_PATH,
+    get_config,
+    set_config,
+    get_smtp_config,
+    update_smtp_config,
+    get_user_by_email,
+    update_user_email,
+    update_user_password,
+    create_password_reset,
+    get_valid_password_reset,
+    mark_password_reset_used,
 )
 
 PRELOADED_DB_PATH = "/app/preloaded_data/data.db"
@@ -303,7 +314,10 @@ def initialize_application():
             test_conn = sqlite3.connect(DB_PATH)
             test_conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             test_conn.close()
-            print(f"[INFO] Valid database found at {DB_PATH}, skipping initialization.")
+            print(f"[INFO] Valid database found at {DB_PATH}")
+            # 数据库存在，但仍需调用 init_db 确保新表被创建（迁移）
+            init_db()
+            print("[INFO] Database migration check completed.")
         except sqlite3.Error as e:
             # 数据库损坏或不可读，需要重新创建
             print(f"[WARNING] Database at {DB_PATH} is corrupted or unreadable: {e}")
@@ -323,6 +337,8 @@ def initialize_application():
             try:
                 os.chmod(DB_PATH, 0o666)
                 print(f"[INFO] Attempted to fix permissions on {DB_PATH}")
+                # 修复权限后也执行迁移检查
+                init_db()
             except Exception as perm_error:
                 print(f"[WARNING] Failed to fix permissions: {perm_error}")
 
@@ -764,13 +780,266 @@ def admin_delete_user(user_id):
     return jsonify({"deleted": user_id})
 
 
-# 在应用启动时执行初始化
-# 放在全局作用域，确保 Gunicorn 导入时也能执行
-with app.app_context():
+@app.route("/api/admin/smtp", methods=["GET"])
+def admin_get_smtp():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    config = get_smtp_config()
+    if config.get("smtp_password"):
+        config["smtp_password"] = "******"
+    return jsonify(config)
+
+
+@app.route("/api/admin/smtp", methods=["POST"])
+def admin_update_smtp():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    data = request.get_json() or {}
+    
+    config_keys = [
+        'smtp_server', 'smtp_port', 'smtp_username', 'smtp_password',
+        'smtp_from_name', 'smtp_from_email', 'smtp_use_ssl', 'smtp_use_tls', 'smtp_enabled'
+    ]
+    
+    update_data = {}
+    for key in config_keys:
+        if key in data:
+            if key == "smtp_password" and data[key] == "******":
+                continue
+            update_data[key] = str(data[key]) if data[key] is not None else ""
+    
+    update_smtp_config(update_data)
+    return jsonify({"success": True, "message": "SMTP配置已保存"})
+
+
+@app.route("/api/admin/smtp/test", methods=["POST"])
+def admin_test_smtp():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    data = request.get_json() or {}
+    test_email = data.get("email", "").strip()
+    
+    if not test_email:
+        return jsonify({"error": "请输入测试邮箱地址"}), 400
+    
+    config = get_smtp_config()
+    
+    if not config.get("smtp_server") or not config.get("smtp_username"):
+        return jsonify({"error": "SMTP未配置完整"}), 400
+    
     try:
-        initialize_application()
+        smtp_server = config.get("smtp_server", "")
+        smtp_port = int(config.get("smtp_port", 587))
+        smtp_username = config.get("smtp_username", "")
+        smtp_password = config.get("smtp_password", "")
+        from_name = config.get("smtp_from_name", "ReadZen")
+        from_email = config.get("smtp_from_email", smtp_username)
+        use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
+        use_tls = config.get("smtp_use_tls", "true").lower() == "true"
+        
+        msg = MIMEMultipart()
+        msg["From"] = f"{from_name} <{from_email}>"
+        msg["To"] = test_email
+        msg["Subject"] = "ReadZen SMTP 测试邮件"
+        msg.attach(MIMEText("这是一封测试邮件，SMTP配置成功！", "plain", "utf-8"))
+        
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            if use_tls:
+                server.starttls()
+        
+        server.login(smtp_username, smtp_password)
+        server.sendmail(from_email, test_email, msg.as_string())
+        server.quit()
+        
+        return jsonify({"success": True, "message": f"测试邮件已发送至 {test_email}"})
     except Exception as e:
-        print(f"[CRITICAL] Failed to initialize application: {e}")
+        return jsonify({"error": f"发送失败: {str(e)}"}), 500
+
+
+@app.route("/api/admin/reset-password/<int:user_id>", methods=["POST"])
+def admin_reset_user_password(user_id):
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    data = request.get_json() or {}
+    new_password = data.get("password", "").strip()
+    
+    if not new_password:
+        return jsonify({"error": "密码不能为空"}), 400
+    if len(new_password) < 6:
+        return jsonify({"error": "密码至少6位"}), 400
+    
+    update_user_password(user_id, new_password)
+    return jsonify({"success": True, "message": "密码已重置"})
+
+
+@app.route("/api/auth/check-smtp", methods=["GET"])
+def check_smtp_enabled():
+    config = get_smtp_config()
+    enabled = config.get("smtp_enabled", "false").lower() == "true"
+    has_config = bool(config.get("smtp_server") and config.get("smtp_username"))
+    
+    if enabled and has_config:
+        return jsonify({"enabled": True})
+    else:
+        admin_email = get_config("admin_contact_email", "")
+        return jsonify({
+            "enabled": False,
+            "admin_email": admin_email,
+            "message": "未配置邮件服务，请联系管理员重置密码"
+        })
+
+
+@app.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from datetime import timedelta
+    
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "请输入邮箱地址"}), 400
+    
+    config = get_smtp_config()
+    enabled = config.get("smtp_enabled", "false").lower() == "true"
+    
+    if not enabled or not config.get("smtp_server"):
+        return jsonify({"error": "邮件服务未启用，请联系管理员"}), 400
+    
+    user = get_user_by_email(email)
+    if not user:
+        return jsonify({"success": True, "message": "如果该邮箱已注册，您将收到重置邮件"})
+    
+    code = ''.join(random.choices(string.digits, k=6))
+    expires_at = datetime.now() + timedelta(minutes=10)
+    
+    create_password_reset(email, code, expires_at, user["id"])
+    
+    try:
+        smtp_server = config.get("smtp_server", "")
+        smtp_port = int(config.get("smtp_port", 587))
+        smtp_username = config.get("smtp_username", "")
+        smtp_password = config.get("smtp_password", "")
+        from_name = config.get("smtp_from_name", "ReadZen")
+        from_email = config.get("smtp_from_email", smtp_username)
+        use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
+        use_tls = config.get("smtp_use_tls", "true").lower() == "true"
+        
+        msg = MIMEMultipart()
+        msg["From"] = f"{from_name} <{from_email}>"
+        msg["To"] = email
+        msg["Subject"] = "ReadZen 密码重置验证码"
+        
+        body = f"""
+您好，
+
+您正在重置 ReadZen 账户密码，验证码为：{code}
+
+验证码有效期为 10 分钟，请尽快完成重置。
+
+如果这不是您的操作，请忽略此邮件。
+
+- ReadZen 团队
+"""
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+        
+        if use_ssl:
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+        else:
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            if use_tls:
+                server.starttls()
+        
+        server.login(smtp_username, smtp_password)
+        server.sendmail(from_email, email, msg.as_string())
+        server.quit()
+        
+        return jsonify({"success": True, "message": "验证码已发送至您的邮箱"})
+    except Exception as e:
+        print(f"[ERROR] Failed to send reset email: {e}")
+        return jsonify({"error": "发送邮件失败，请稍后重试"}), 500
+
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    code = data.get("code", "").strip()
+    new_password = data.get("password", "").strip()
+    
+    if not email or not code or not new_password:
+        return jsonify({"error": "请填写完整信息"}), 400
+    
+    if len(new_password) < 6:
+        return jsonify({"error": "密码至少6位"}), 400
+    
+    reset_record = get_valid_password_reset(email, code)
+    if not reset_record:
+        return jsonify({"error": "验证码无效或已过期"}), 400
+    
+    user = get_user_by_email(email)
+    if not user:
+        return jsonify({"error": "用户不存在"}), 400
+    
+    update_user_password(user["id"], new_password)
+    mark_password_reset_used(reset_record["id"])
+    
+    return jsonify({"success": True, "message": "密码重置成功，请登录"})
+
+
+@app.route("/api/user/email", methods=["GET"])
+def get_user_email():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT email FROM users WHERE id = ?", (session["user_id"],)
+    ).fetchone()
+    conn.close()
+    
+    return jsonify({"email": row["email"] if row else None})
+
+
+@app.route("/api/user/email", methods=["POST"])
+def update_user_email_api():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "请输入邮箱地址"}), 400
+    
+    existing = get_user_by_email(email)
+    if existing and existing["id"] != session["user_id"]:
+        return jsonify({"error": "该邮箱已被其他用户使用"}), 400
+    
+    update_user_email(session["user_id"], email)
+    return jsonify({"success": True, "message": "邮箱已更新"})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 15000))
