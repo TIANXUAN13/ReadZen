@@ -74,10 +74,39 @@ def init_db():
         )"""
     )
     
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS email_verifications (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           user_id INTEGER,
+           email TEXT NOT NULL,
+           code TEXT NOT NULL,
+           type TEXT NOT NULL,
+           expires_at TIMESTAMP NOT NULL,
+           used INTEGER DEFAULT 0,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY(user_id) REFERENCES users(id)
+        )"""
+    )
+    
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS email_verifications (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           user_id INTEGER NOT NULL,
+           email TEXT NOT NULL,
+           code TEXT NOT NULL,
+           expires_at TIMESTAMP NOT NULL,
+           used INTEGER DEFAULT 0,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY(user_id) REFERENCES users(id)
+        )"""
+    )
+    
     cur.execute("PRAGMA table_info(users)")
     columns = [col[1] for col in cur.fetchall()]
     if 'email' not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN email TEXT")
+    if 'email_verified' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
     
     conn.commit()
     conn.close()
@@ -91,12 +120,13 @@ def get_user_by_username(username):
     return row
 
 
-def create_user(username, password):
+def create_user(username, password, email=None):
     hashed = generate_password_hash(password)
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        "INSERT INTO users (username, password) VALUES (?, ?)", (username, hashed)
+        "INSERT INTO users (username, password, email) VALUES (?, ?, ?)", 
+        (username, hashed, email)
     )
     conn.commit()
     user_id = cur.lastrowid
@@ -382,3 +412,88 @@ def cleanup_expired_resets():
     )
     conn.commit()
     conn.close()
+
+
+def create_email_verification(user_id, email, code, verification_type='register', expires_at=None):
+    """创建邮箱验证记录
+    verification_type: 'register' 注册验证, 'change_email' 修改邮箱验证
+    """
+    from datetime import datetime, timedelta
+    if expires_at is None:
+        expires_at = datetime.now() + timedelta(minutes=30)
+    
+    conn = get_conn()
+    cur = conn.cursor()
+    cur.execute(
+        """INSERT INTO email_verifications (user_id, email, code, type, expires_at)
+           VALUES (?, ?, ?, ?, ?)""",
+        (user_id, email, code, verification_type, expires_at)
+    )
+    conn.commit()
+    verification_id = cur.lastrowid
+    conn.close()
+    return verification_id
+
+
+def get_valid_email_verification(email, code, verification_type=None):
+    """获取有效的邮箱验证记录"""
+    conn = get_conn()
+    if verification_type:
+        row = conn.execute(
+            """SELECT * FROM email_verifications 
+               WHERE email = ? AND code = ? AND type = ? AND used = 0 
+               AND expires_at > datetime('now')
+               ORDER BY created_at DESC LIMIT 1""",
+            (email, code, verification_type)
+        ).fetchone()
+    else:
+        row = conn.execute(
+            """SELECT * FROM email_verifications 
+               WHERE email = ? AND code = ? AND used = 0 
+               AND expires_at > datetime('now')
+               ORDER BY created_at DESC LIMIT 1""",
+            (email, code)
+        ).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def mark_email_verification_used(verification_id):
+    """标记邮箱验证记录为已使用"""
+    conn = get_conn()
+    conn.execute(
+        "UPDATE email_verifications SET used = 1 WHERE id = ?", (verification_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def verify_user_email(user_id):
+    """标记用户邮箱为已验证"""
+    conn = get_conn()
+    conn.execute(
+        "UPDATE users SET email_verified = 1 WHERE id = ?", (user_id,)
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_user_email_with_verification(user_id, email):
+    """更新用户邮箱并标记为已验证"""
+    conn = get_conn()
+    conn.execute(
+        "UPDATE users SET email = ?, email_verified = 1 WHERE id = ?", 
+        (email, user_id)
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_user_email_verified(user_id):
+    """获取用户邮箱验证状态"""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT email, email_verified FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None

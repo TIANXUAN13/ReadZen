@@ -46,6 +46,12 @@ from database import (
     create_password_reset,
     get_valid_password_reset,
     mark_password_reset_used,
+    create_email_verification,
+    get_valid_email_verification,
+    mark_email_verification_used,
+    verify_user_email,
+    update_user_email_with_verification,
+    get_user_email_verified,
 )
 
 PRELOADED_DB_PATH = "/app/preloaded_data/data.db"
@@ -138,6 +144,55 @@ def validate_password(password: str) -> tuple[bool, str]:
         return False, "密码必须包含至少一个数字"
 
     return True, ""
+
+def send_verification_email(to_email, code, username):
+    """发送邮箱验证邮件"""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    config = get_smtp_config()
+    
+    if not config.get('smtp_server'):
+        raise Exception("SMTP未配置")
+    
+    smtp_server = config.get("smtp_server", "")
+    smtp_port = int(config.get("smtp_port", 587))
+    smtp_username = config.get("smtp_username", "")
+    smtp_password = config.get("smtp_password", "")
+    from_name = config.get("smtp_from_name", "ReadZen")
+    from_email = config.get("smtp_from_email", smtp_username)
+    use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
+    use_tls = config.get("smtp_use_tls", "true").lower() == "true"
+    
+    msg = MIMEMultipart()
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to_email
+    msg["Subject"] = "ReadZen 邮箱验证"
+    
+    body = f"""
+您好，{username}！
+
+感谢您注册 ReadZen。您的邮箱验证码为：{code}
+
+验证码有效期为 24 小时，请尽快完成验证。
+
+如果这不是您的操作，请忽略此邮件。
+
+- ReadZen 团队
+"""
+    msg.attach(MIMEText(body, "plain", "utf-8"))
+    
+    if use_ssl:
+        server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+    else:
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        if use_tls:
+            server.starttls()
+    
+    server.login(smtp_username, smtp_password)
+    server.sendmail(from_email, to_email, msg.as_string())
+    server.quit()
 
 # 验证码图片生成器
 captcha_generator = ImageCaptcha(width=160, height=60)
@@ -413,11 +468,12 @@ def register():
     username = data.get("username")
     password = data.get("password")
     confirm_password = data.get("confirm_password", data.get("password_confirm", ""))
+    email = data.get("email", "").strip().lower()
     captcha = data.get("captcha", "").strip().upper()
 
-    # 用户名和密码必填验证
-    if not username or not password:
-        return jsonify({"error": "username和password是必填项"}), 400
+    # 用户名、密码和邮箱必填验证
+    if not username or not password or not email:
+        return jsonify({"error": "username、password和email是必填项"}), 400
 
     # 用户名长度限制（3-20个字符）
     if len(username) < 3 or len(username) > 20:
@@ -427,12 +483,16 @@ def register():
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
         return jsonify({"error": "用户名只能包含字母、数字和下划线"}), 400
 
+    # 邮箱格式验证
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+        return jsonify({"error": "邮箱格式不正确"}), 400
+
     # 密码强度验证
     is_valid, error_msg = validate_password(password)
     if not is_valid:
         return jsonify({"error": error_msg}), 400
 
-    # 校验两次输入的密码是否一致
+    # 校验两次输入的密码一致
     if confirm_password != password:
         return jsonify({"error": "两次输入的密码不一致"}), 400
 
@@ -451,17 +511,29 @@ def register():
     if captcha != session_captcha:
         return jsonify({"error": "验证码错误"}), 400
 
+    # 检查用户名是否已存在
     if get_user_by_username(username):
-        return jsonify({"error": "user exists"}), 400
+        return jsonify({"error": "用户名已存在"}), 400
+
+    # 检查邮箱是否已被使用
+    existing_email_user = get_user_by_email(email)
+    if existing_email_user:
+        return jsonify({"error": "该邮箱已被注册"}), 400
 
     # 验证成功后清除验证码，防止重复使用
     session.pop("captcha", None)
     session.pop("captcha_time", None)
 
-    user_id = create_user(username, password)
+    # 创建用户
+    user_id = create_user(username, password, email)
     session["user_id"] = user_id
     session["username"] = username
-    return jsonify({"id": user_id, "username": username})
+    
+    return jsonify({
+        "id": user_id, 
+        "username": username, 
+        "email": email
+    })
 
 
 @app.route("/api/auth/login", methods=["POST"])
@@ -502,8 +574,135 @@ def login():
 @app.route("/api/auth/me", methods=["GET"])
 def me():
     if "user_id" in session:
-        return jsonify({"id": session["user_id"], "username": session.get("username")})
+        user_id = session["user_id"]
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT id, username, email, email_verified FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        conn.close()
+        if row:
+            return jsonify({
+                "id": row["id"], 
+                "username": row["username"],
+                "email": row["email"],
+                "email_verified": bool(row["email_verified"])
+            })
+        return jsonify({"id": user_id, "username": session.get("username")})
     return jsonify({"error": "not logged in"}), 401
+
+
+@app.route("/api/auth/verify-email", methods=["POST"])
+def verify_email():
+    """验证邮箱"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.json or {}
+    code = data.get("code", "").strip()
+    
+    if not code:
+        return jsonify({"error": "请输入验证码"}), 400
+    
+    user_id = session["user_id"]
+    user = get_user_by_username(session.get("username"))
+    
+    if not user or not user["email"]:
+        return jsonify({"error": "用户未设置邮箱"}), 400
+    
+    verification = get_valid_email_verification(user["email"], code, 'register')
+    if not verification:
+        return jsonify({"error": "验证码无效或已过期"}), 400
+    
+    mark_email_verification_used(verification["id"])
+    verify_user_email(user_id)
+    
+    return jsonify({"success": True, "message": "邮箱验证成功"})
+
+
+@app.route("/api/auth/resend-verification", methods=["POST"])
+def resend_verification():
+    """重新发送验证邮件"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    user_id = session["user_id"]
+    user = get_user_by_username(session.get("username"))
+    
+    if not user:
+        return jsonify({"error": "用户不存在"}), 400
+    
+    if not user["email"]:
+        return jsonify({"error": "用户未设置邮箱"}), 400
+    
+    if user["email_verified"]:
+        return jsonify({"error": "邮箱已验证"}), 400
+    
+    smtp_config = get_smtp_config()
+    if not smtp_config.get('smtp_enabled') == 'true':
+        return jsonify({"error": "邮件服务未启用"}), 400
+    
+    import secrets
+    verification_code = ''.join(secrets.choice('0123456789') for _ in range(6))
+    from datetime import timedelta
+    expires_at = datetime.now() + timedelta(hours=24)
+    create_email_verification(user_id, user["email"], verification_code, 'register', expires_at)
+    
+    try:
+        send_verification_email(user["email"], verification_code, user["username"])
+        return jsonify({"success": True, "message": "验证邮件已发送"})
+    except Exception as e:
+        print(f"[ERROR] Failed to send verification email: {e}")
+        return jsonify({"error": "发送邮件失败"}), 500
+
+
+@app.route("/api/auth/change-email", methods=["POST"])
+def change_email():
+    """修改邮箱"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.json or {}
+    new_email = data.get("email", "").strip().lower()
+    code = data.get("code", "").strip()
+    
+    if not new_email:
+        return jsonify({"error": "请输入邮箱"}), 400
+    
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', new_email):
+        return jsonify({"error": "邮箱格式不正确"}), 400
+    
+    user_id = session["user_id"]
+    
+    existing_user = get_user_by_email(new_email)
+    if existing_user and existing_user["id"] != user_id:
+        return jsonify({"error": "该邮箱已被其他用户使用"}), 400
+    
+    if code:
+        verification = get_valid_email_verification(new_email, code, 'change_email')
+        if not verification:
+            return jsonify({"error": "验证码无效或已过期"}), 400
+        
+        mark_email_verification_used(verification["id"])
+        update_user_email_with_verification(user_id, new_email)
+        return jsonify({"success": True, "message": "邮箱修改成功"})
+    else:
+        smtp_config = get_smtp_config()
+        if not smtp_config.get('smtp_enabled') == 'true':
+            return jsonify({"error": "邮件服务未启用，请联系管理员修改邮箱"}), 400
+        
+        import secrets
+        verification_code = ''.join(secrets.choice('0123456789') for _ in range(6))
+        from datetime import timedelta
+        expires_at = datetime.now() + timedelta(hours=24)
+        create_email_verification(user_id, new_email, verification_code, 'change_email', expires_at)
+        
+        try:
+            user = get_user_by_username(session.get("username"))
+            send_verification_email(new_email, verification_code, user["username"])
+            return jsonify({"success": True, "message": "验证邮件已发送到新邮箱", "need_code": True})
+        except Exception as e:
+            print(f"[ERROR] Failed to send verification email: {e}")
+            return jsonify({"error": "发送邮件失败"}), 500
 
 
 @app.route("/api/auth/logout", methods=["POST"])

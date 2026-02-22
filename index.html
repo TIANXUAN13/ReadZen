@@ -546,6 +546,14 @@
                                     :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                 />
                                 <input 
+                                    v-model="regForm.email"
+                                    type="email"
+                                    placeholder="邮箱地址"
+                                    @keyup.enter="doRegister"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <input 
                                     v-model="regForm.password"
                                     type="password"
                                     placeholder="设置登录密码"
@@ -1156,6 +1164,12 @@
                             <div class="flex items-center justify-between mb-2">
                                 <span :style="{ color: textClass }" class="text-sm font-medium">{{ user.username }}</span>
                             </div>
+                            
+                            <!-- 邮箱显示 -->
+                            <div v-if="user.email" class="mb-2 px-3 py-2 rounded text-xs" :style="{ color: isDark ? '#9ca3af' : '#6b7280' }">
+                                <span>邮箱: {{ user.email }}</span>
+                            </div>
+                            
                             <button 
                                 @click="openChangePassword"
                                 :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', hoverBgClass + ' text-gray-700']"
@@ -1165,6 +1179,17 @@
                                 </svg>
                                 修改密码
                             </button>
+                            
+                            <button 
+                                @click="openChangeEmail"
+                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', hoverBgClass + ' text-gray-700']"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                修改邮箱
+                            </button>
+                            
                             <button 
                                 @click="doLogout"
                                 :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors', hoverBgClass + ' text-gray-700']"
@@ -1304,6 +1329,73 @@
                     >
                         {{ changePasswordLoading ? '修改中...' : '确认修改' }}
                     </button>
+                </div>
+            </div>
+
+            <!-- 修改邮箱弹窗 -->
+            <div v-if="showChangeEmail" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showChangeEmail = false">
+                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                            修改邮箱
+                        </h3>
+                        <button @click="showChangeEmail = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div v-if="!changeEmailStep2">
+                        <input 
+                            v-model="changeEmailForm.new_email"
+                            type="email"
+                            placeholder="新邮箱地址"
+                            :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <p :class="['text-xs mb-4', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                            将发送验证码到新邮箱
+                        </p>
+                        <button 
+                            @click="doChangeEmail"
+                            :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                            :disabled="changeEmailLoading"
+                        >
+                            {{ changeEmailLoading ? '发送中...' : '发送验证码' }}
+                        </button>
+                    </div>
+                    
+                    <div v-else>
+                        <p :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">
+                            验证码已发送至: {{ changeEmailForm.new_email }}
+                        </p>
+                        <input 
+                            v-model="changeEmailForm.code"
+                            type="text"
+                            placeholder="验证码"
+                            maxlength="6"
+                            :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <div class="flex gap-2">
+                            <button 
+                                @click="changeEmailStep2 = false"
+                                :class="['flex-1 py-2 rounded text-sm font-medium border transition-colors', backgroundColor === 'dark' ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700']"
+                            >
+                                返回
+                            </button>
+                            <button 
+                                @click="doVerifyChangeEmail"
+                                :class="['flex-1 py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                                :disabled="changeEmailLoading"
+                            >
+                                {{ changeEmailLoading ? '验证中...' : '确认修改' }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div v-if="changeEmailError" :class="['text-sm mt-3', backgroundColor === 'dark' ? 'text-red-400' : 'text-red-500']">
+                        {{ changeEmailError }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1691,7 +1783,7 @@
                 const showAuth = ref(false);
                 const authMode = ref('login');
                 const loginForm = reactive({ username: '', password: '', captcha: '' });
-                const regForm = reactive({ username: '', password: '', confirm_password: '', captcha: '' });
+                const regForm = reactive({ username: '', email: '', password: '', confirm_password: '', captcha: '' });
                 const captchaImage = ref('');
                 
                 // 获取验证码图片
@@ -1731,7 +1823,9 @@
                     loginForm.password = '';
                     loginForm.captcha = '';
                     regForm.username = '';
+                    regForm.email = '';
                     regForm.password = '';
+                    regForm.confirm_password = '';
                     regForm.captcha = '';
                     fetchCaptcha();
                     showAuth.value = true;
@@ -1763,7 +1857,10 @@
                 
                 // 注册
                 const doRegister = async () => {
-                    // 客户端校验：密码两次输入是否一致
+                    if (!regForm.email) {
+                        showToast('请输入邮箱地址', 'error');
+                        return;
+                    }
                     if (regForm.password !== regForm.confirm_password) {
                         showToast('两次输入的密码不一致', 'error');
                         return;
@@ -1773,6 +1870,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             username: regForm.username, 
+                            email: regForm.email,
                             password: regForm.password,
                             confirm_password: regForm.confirm_password,
                             captcha: regForm.captcha 
@@ -1780,8 +1878,12 @@
                         credentials: 'include'
                     });
                     if (resp.ok) {
-                        user.value = await resp.json();
+                        const data = await resp.json();
+                        user.value = data;
                         showAuth.value = false;
+                        if (data.message) {
+                            showToast(data.message, 'success');
+                        }
                     } else {
                         const err = await resp.json();
                         alert(err.error || '注册失败');
@@ -2643,6 +2745,118 @@
                     }
                 };
 
+                // 修改邮箱相关
+                const showChangeEmail = ref(false);
+                const changeEmailStep2 = ref(false);
+                const changeEmailForm = reactive({
+                    new_email: '',
+                    code: ''
+                });
+                const changeEmailError = ref('');
+                const changeEmailLoading = ref(false);
+
+                const openChangeEmail = () => {
+                    changeEmailForm.new_email = '';
+                    changeEmailForm.code = '';
+                    changeEmailError.value = '';
+                    changeEmailStep2.value = false;
+                    showChangeEmail.value = true;
+                };
+
+                const doChangeEmail = async () => {
+                    changeEmailError.value = '';
+                    
+                    if (!changeEmailForm.new_email) {
+                        changeEmailError.value = '请输入邮箱地址';
+                        return;
+                    }
+                    
+                    changeEmailLoading.value = true;
+                    
+                    try {
+                        const res = await fetch('/api/auth/change-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: changeEmailForm.new_email
+                            }),
+                            credentials: 'include'
+                        });
+                        
+                        const data = await res.json();
+                        if (res.ok && data.need_code) {
+                            changeEmailStep2.value = true;
+                            showToast('验证码已发送到新邮箱', 'success');
+                        } else if (res.ok) {
+                            showChangeEmail.value = false;
+                            await checkCurrentUser();
+                            showToast(data.message || '邮箱修改成功', 'success');
+                        } else {
+                            changeEmailError.value = data.error || '发送失败';
+                        }
+                    } catch (e) {
+                        console.error('修改邮箱失败:', e);
+                        changeEmailError.value = '发送失败，请稍后重试';
+                    } finally {
+                        changeEmailLoading.value = false;
+                    }
+                };
+
+                const doVerifyChangeEmail = async () => {
+                    changeEmailError.value = '';
+                    
+                    if (!changeEmailForm.code) {
+                        changeEmailError.value = '请输入验证码';
+                        return;
+                    }
+                    
+                    changeEmailLoading.value = true;
+                    
+                    try {
+                        const res = await fetch('/api/auth/change-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: changeEmailForm.new_email,
+                                code: changeEmailForm.code
+                            }),
+                            credentials: 'include'
+                        });
+                        
+                        const data = await res.json();
+                        if (res.ok) {
+                            showChangeEmail.value = false;
+                            await checkCurrentUser();
+                            showToast(data.message || '邮箱修改成功', 'success');
+                        } else {
+                            changeEmailError.value = data.error || '验证失败';
+                        }
+                    } catch (e) {
+                        console.error('验证邮箱失败:', e);
+                        changeEmailError.value = '验证失败，请稍后重试';
+                    } finally {
+                        changeEmailLoading.value = false;
+                    }
+                };
+
+                // 重发验证邮件
+                const resendVerification = async () => {
+                    try {
+                        const res = await fetch('/api/auth/resend-verification', {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '验证邮件已发送', 'success');
+                        } else {
+                            showToast(data.error || '发送失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('发送失败', 'error');
+                    }
+                };
+
                 // 当切换到用户管理页面时加载用户列表
                 watch(() => activeTab.value, (newTab) => {
                     if (newTab === 'admin') {
@@ -2753,6 +2967,15 @@
                         changePasswordLoading,
                         openChangePassword,
                         doChangePassword,
+                        showChangeEmail,
+                        changeEmailStep2,
+                        changeEmailForm,
+                        changeEmailError,
+                        changeEmailLoading,
+                        openChangeEmail,
+                        doChangeEmail,
+                        doVerifyChangeEmail,
+                        resendVerification,
                         formatDate,
                         getArticle,
                          adjustFontSize,
