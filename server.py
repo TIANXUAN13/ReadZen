@@ -568,7 +568,18 @@ def login():
         return jsonify({"error": "invalid credentials"}), 401
     session["user_id"] = user_id
     session["username"] = username
-    return jsonify({"id": user_id, "username": username})
+    
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, username, email FROM users WHERE id = ?", (user_id,)
+    ).fetchone()
+    conn.close()
+    
+    return jsonify({
+        "id": user_id, 
+        "username": username,
+        "email": row["email"] if row else None
+    })
 
 
 @app.route("/api/auth/me", methods=["GET"])
@@ -672,6 +683,10 @@ def change_email():
         return jsonify({"error": "邮箱格式不正确"}), 400
     
     user_id = session["user_id"]
+    current_user = get_user_by_username(session.get("username"))
+    
+    if current_user and current_user["email"] and current_user["email"].lower() == new_email:
+        return jsonify({"error": "该邮箱已是当前使用的邮箱，无需修改"}), 400
     
     existing_user = get_user_by_email(new_email)
     if existing_user and existing_user["id"] != user_id:
@@ -697,8 +712,7 @@ def change_email():
         create_email_verification(user_id, new_email, verification_code, 'change_email', expires_at)
         
         try:
-            user = get_user_by_username(session.get("username"))
-            send_verification_email(new_email, verification_code, user["username"])
+            send_verification_email(new_email, verification_code, current_user["username"])
             return jsonify({"success": True, "message": "验证邮件已发送到新邮箱", "need_code": True})
         except Exception as e:
             print(f"[ERROR] Failed to send verification email: {e}")
