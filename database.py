@@ -11,17 +11,36 @@ DB_PATH = os.path.join(DATA_DIR, "data.db")
 
 # 加密密钥 - 生产环境应使用环境变量
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
-if not ENCRYPTION_KEY:
+
+def get_encryption_key():
+    """获取加密密钥，确保数据库已初始化"""
+    global ENCRYPTION_KEY
+    
+    if ENCRYPTION_KEY:
+        return ENCRYPTION_KEY
+    
+    # 先确保数据库已初始化
+    try:
+        init_db()
+    except Exception:
+        pass
+    
     # 尝试从数据库获取
+    key_from_db = None
     try:
         conn = get_conn()
         row = conn.execute("SELECT config_value FROM system_config WHERE config_key = 'encryption_key'").fetchone()
         conn.close()
         if row and row["config_value"]:
-            ENCRYPTION_KEY = row["config_value"]
-        else:
-            ENCRYPTION_KEY = Fernet.generate_key().decode()
-            # 保存到数据库
+            key_from_db = row["config_value"]
+    except Exception:
+        pass
+    
+    if key_from_db:
+        ENCRYPTION_KEY = key_from_db
+    else:
+        ENCRYPTION_KEY = Fernet.generate_key().decode()
+        try:
             conn = get_conn()
             conn.execute(
                 "INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES ('encryption_key', ?, datetime('now'))",
@@ -30,16 +49,21 @@ if not ENCRYPTION_KEY:
             conn.commit()
             conn.close()
             print("[WARNING] ENCRYPTION_KEY not set. Generated and saved to database.")
-    except Exception:
-        ENCRYPTION_KEY = Fernet.generate_key().decode()
-        print("[WARNING] ENCRYPTION_KEY not set. Generated random key (not persisted).")
+        except Exception as e:
+            print(f"[WARNING] ENCRYPTION_KEY not set. Generated random key (not persisted): {e}")
+    
+    return ENCRYPTION_KEY
+
+# 初始化密钥
+get_encryption_key()
 
 _cipher = None
 def get_cipher():
     global _cipher
     if _cipher is None:
+        key = get_encryption_key()
         try:
-            _cipher = Fernet(ENCRYPTION_KEY.encode() if isinstance(ENCRYPTION_KEY, str) else ENCRYPTION_KEY)
+            _cipher = Fernet(key.encode() if isinstance(key, str) else key)
         except Exception:
             _cipher = Fernet.generate_key()
             _cipher = Fernet(_cipher)
@@ -414,8 +438,11 @@ def get_smtp_config():
                     decrypted = decrypt_password(value)
                     if decrypted:
                         value = decrypted
-                except Exception:
-                    pass
+                    else:
+                        value = None
+                except Exception as e:
+                    print(f"[WARNING] Failed to decrypt SMTP password: {e}")
+                    value = None
             config[key] = value
     return config
 
