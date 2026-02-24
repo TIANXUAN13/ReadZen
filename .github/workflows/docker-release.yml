@@ -15,6 +15,11 @@ on:
         description: 'Admin password for Docker image'
         required: false
         default: 'admin123'
+      use_slim:
+        description: 'Use docker-slim to optimize image size'
+        required: false
+        default: 'true'
+        type: boolean
 
 permissions:
   contents: write
@@ -37,6 +42,7 @@ jobs:
           echo "Input branch: ${{ github.event.inputs.branch }}"
           echo "Input tag: ${{ github.event.inputs.tag }}"
           echo "Input password: ${{ github.event.inputs.password }}"
+          echo "Use docker-slim: ${{ github.event.inputs.use_slim }}"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -55,16 +61,105 @@ jobs:
           tags: |
             type=raw,value=${{ github.event.inputs.tag || 'latest' }}
 
-      - name: Build and push Docker image
+      - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          push: false
           load: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/readzen:${{ github.event.inputs.tag || 'latest' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/readzen:${{ github.event.inputs.tag || 'latest' }}
+            readzen:original
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             ADMIN_PASSWORD=${{ github.event.inputs.password || 'admin123' }}
+
+      - name: Show original image size
+        run: |
+          echo "=== Original Docker Image Size ==="
+          docker images readzen:original --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}"
+          ORIGINAL_SIZE=$(docker inspect readzen:original --format '{{.Size}}')
+          echo "Original size in bytes: ${ORIGINAL_SIZE}"
+          echo "original_size=${ORIGINAL_SIZE}" >> $GITHUB_OUTPUT
+
+      - name: Install docker-slim
+        if: github.event.inputs.use_slim == 'true'
+        run: |
+          curl -sL https://github.com/docker-slim/docker-slim/releases/download/1.40.11/dist_linux.tar.gz -o dist_linux.tar.gz
+          tar -xzf dist_linux.tar.gz
+          sudo mv dist_linux/mint /usr/local/bin/docker-slim
+          sudo mv dist_linux/mint-sensor /usr/local/bin/docker-slim-sensor
+          sudo chmod +x /usr/local/bin/docker-slim /usr/local/bin/docker-slim-sensor
+          docker-slim --version
+
+      - name: Optimize image with docker-slim
+        if: github.event.inputs.use_slim == 'true'
+        id: slim
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/readzen"
+          TAG="${{ github.event.inputs.tag || 'latest' }}"
+
+          echo "=== Running docker-slim optimization ==="
+          docker-slim build \
+            --target readzen:original \
+            --tag ${IMAGE_NAME}:${TAG} \
+            --tag readzen:slim \
+            --http-probe \
+            --expose 15000 \
+            --container-port 15000 \
+            --http-probe-cmd "GET /api/daily" \
+            --include-path /app/data \
+            --include-path /app/preloaded_data \
+            --include-path /usr/local/lib \
+            --include-bin /usr/bin/python3.10 \
+            --include-bin /usr/local/bin/gunicorn \
+            --include-bin /usr/bin/sqlite3
+
+          echo "=== Slim Image Size ==="
+          docker images readzen:slim --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}"
+          SLIM_SIZE=$(docker inspect readzen:slim --format '{{.Size}}')
+          echo "Slim size in bytes: ${SLIM_SIZE}"
+          echo "slim_size=${SLIM_SIZE}" >> $GITHUB_OUTPUT
+
+      - name: Compare image sizes
+        if: github.event.inputs.use_slim == 'true'
+        run: |
+          echo ""
+          echo "========================================"
+          echo "Image Size Comparison"
+          echo "========================================"
+
+          ORIGINAL_SIZE=$(docker inspect readzen:original --format '{{.Size}}')
+          SLIM_SIZE=$(docker inspect readzen:slim --format '{{.Size}}')
+
+          echo "| Image | Size |"
+          echo "|-------|------|"
+          echo "| Original | $(numfmt --to=iec ${ORIGINAL_SIZE}) |"
+          echo "| Optimized | $(numfmt --to=iec ${SLIM_SIZE}) |"
+
+          REDUCTION=$((100 - (SLIM_SIZE * 100 / ORIGINAL_SIZE)))
+          SAVED=$((ORIGINAL_SIZE - SLIM_SIZE))
+
+          echo ""
+          echo "Reduction: ${REDUCTION}%"
+          echo "Space saved: $(numfmt --to=iec ${SAVED})"
+          echo ""
+          echo "original_size=${ORIGINAL_SIZE}" >> $GITHUB_OUTPUT
+          echo "slim_size=${SLIM_SIZE}" >> $GITHUB_OUTPUT
+          echo "reduction=${REDUCTION}" >> $GITHUB_OUTPUT
+
+      - name: Tag non-slim image
+        if: github.event.inputs.use_slim != 'true'
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/readzen"
+          TAG="${{ github.event.inputs.tag || 'latest' }}"
+          docker tag readzen:original ${IMAGE_NAME}:${TAG}
+
+      - name: Push Docker image
+        run: |
+          IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/readzen"
+          TAG="${{ github.event.inputs.tag || 'latest' }}"
+          docker push ${IMAGE_NAME}:${TAG}
 
       - name: Get tag value for comparison
         id: tag-info
@@ -134,9 +229,39 @@ jobs:
         run: |
           TAG="${{ github.event.inputs.tag }}"
           BRANCH="${{ github.event.inputs.branch }}"
-          echo "Docker image built and pushed successfully!"
-          echo "Branch: ${BRANCH}"
-          echo "Image: ${{ secrets.DOCKERHUB_USERNAME }}/readzen:${TAG}"
+          USE_SLIM="${{ github.event.inputs.use_slim }}"
+
+          echo "## Docker Image Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Parameter | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${BRANCH} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Image Tag | ${{ secrets.DOCKERHUB_USERNAME }}/readzen:${TAG} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docker-slim | ${USE_SLIM} |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${USE_SLIM}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### Image Size Comparison" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+
+            ORIGINAL_SIZE=$(docker inspect readzen:original --format '{{.Size}}' 2>/dev/null || echo "0")
+            SLIM_SIZE=$(docker inspect readzen:slim --format '{{.Size}}' 2>/dev/null || echo "0")
+
+            if [ "$ORIGINAL_SIZE" != "0" ] && [ "$SLIM_SIZE" != "0" ]; then
+              ORIGINAL_HUMAN=$(numfmt --to=iec ${ORIGINAL_SIZE})
+              SLIM_HUMAN=$(numfmt --to=iec ${SLIM_SIZE})
+              REDUCTION=$((100 - (SLIM_SIZE * 100 / ORIGINAL_SIZE)))
+
+              echo "| Image | Size |" >> $GITHUB_STEP_SUMMARY
+              echo "|-------|------|" >> $GITHUB_STEP_SUMMARY
+              echo "| Original | ${ORIGINAL_HUMAN} |" >> $GITHUB_STEP_SUMMARY
+              echo "| Optimized | ${SLIM_HUMAN} |" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
+              echo "**Reduction: ${REDUCTION}%**" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
           if [ "$TAG" != "latest" ]; then
-            echo "Release created at https://github.com/${{ github.repository }}/releases/tag/${TAG}"
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Release created at: https://github.com/${{ github.repository }}/releases/tag/${TAG}" >> $GITHUB_STEP_SUMMARY
           fi
