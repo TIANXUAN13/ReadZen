@@ -1082,6 +1082,27 @@ def daily():
     return jsonify(article_data)
 
 
+# Version info API
+@app.route("/api/version", methods=["GET"])
+def get_version():
+    """获取版本信息"""
+    import json
+    version_file = os.path.join(os.path.dirname(__file__), "version.json")
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            version_info = json.load(f)
+        return jsonify(version_info)
+    except Exception as e:
+        return jsonify({
+            "version": "unknown",
+            "build_date": "",
+            "git_commit": "",
+            "git_branch": "",
+            "repository": "https://github.com/TIANXUAN13/ReadZen",
+            "error": str(e)
+        })
+
+
 # Admin APIs (only admin user can access)
 @app.route("/api/admin/users", methods=["GET"])
 def admin_users():

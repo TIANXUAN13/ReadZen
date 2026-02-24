@@ -350,6 +350,25 @@
                                   <span class="font-medium">用户管理</span>
                               </button>
                           </li>
+
+                          <!-- 关于 -->
+                          <li>
+                              <button
+                                  @click="activeTab = 'about'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                      activeTab === 'about'
+                                          ? (backgroundColor === 'dark' ? 'bg-emerald-600/20 text-emerald-400 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)]' : 'bg-emerald-50 text-emerald-600 shadow-sm')
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-100 text-gray-600')
+                                  ]"
+                              >
+                                  <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 transition-transform duration-300', activeTab === 'about' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                  <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'about' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span class="font-medium">关于</span>
+                              </button>
+                          </li>
                        </ul>
                    </nav>
                 
@@ -1319,6 +1338,79 @@
                       </div>
                   </div>
 
+                  <!-- 关于页面 -->
+                  <div v-else-if="activeTab === 'about'" class="h-full overflow-y-auto p-6">
+                      <div class="max-w-2xl mx-auto">
+                          <div :class="['rounded-lg p-6 mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <div class="text-center mb-6">
+                                  <h2 class="text-2xl font-bold mb-2" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">ReadZen</h2>
+                                  <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">享受阅读时光</p>
+                              </div>
+
+                              <div v-if="loadingVersion" class="text-center py-8">
+                                  <div class="animate-spin rounded-full h-6 w-6 border-b-2 mx-auto mb-3" :style="{ borderColor: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }"></div>
+                                  <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">加载版本信息...</p>
+                              </div>
+
+                              <div v-else :class="['space-y-4', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">
+                                  <div class="flex justify-between items-center py-2 border-b" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">版本</span>
+                                      <span class="font-mono text-sm font-medium">{{ versionInfo.version || '-' }}</span>
+                                  </div>
+                                  <div class="flex justify-between items-center py-2 border-b" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">构建时间</span>
+                                      <span class="font-mono text-sm">{{ versionInfo.build_date || '-' }}</span>
+                                  </div>
+                                  <div class="flex justify-between items-center py-2 border-b" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">Git 分支</span>
+                                      <span class="font-mono text-sm">{{ versionInfo.git_branch || '-' }}</span>
+                                  </div>
+                                  <div class="flex justify-between items-center py-2">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">Git 提交</span>
+                                      <span class="font-mono text-sm" :title="versionInfo.git_commit">{{ versionInfo.git_commit ? versionInfo.git_commit.substring(0, 8) : '-' }}</span>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div :class="['rounded-lg p-6 mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">项目地址</h3>
+                              <a
+                                  :href="versionInfo.repository || 'https://github.com/TIANXUAN13/ReadZen'"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  :class="['flex items-center gap-2 text-sm transition-colors', backgroundColor === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600']"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                  </svg>
+                                  <span>GitHub - TIANXUAN13/ReadZen</span>
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                              </a>
+                          </div>
+
+                          <div :class="['rounded-lg p-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">关于项目</h3>
+                              <div :class="['text-sm leading-relaxed space-y-3', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600']">
+                                  <p>ReadZen 是一款禅意风格的每日一文阅读器，支持本地文章上传与管理。</p>
+                                  <p>主要功能：</p>
+                                  <ul class="list-disc list-inside space-y-1 ml-2">
+                                      <li>每日一文推荐</li>
+                                      <li>本地文章上传（支持单文件和文件夹）</li>
+                                      <li>文章收藏与管理</li>
+                                      <li>个性化阅读设置</li>
+                                      <li>用户认证与权限管理</li>
+                                  </ul>
+                              </div>
+                          </div>
+
+                          <div class="mt-6 text-center">
+                              <p class="text-[10px] opacity-40">Content provided by qhsou.com</p>
+                          </div>
+                      </div>
+                  </div>
+
                     <!-- 设置面板遮罩层 -->
                     <div v-if="showSettings" 
                          class="fixed inset-0 z-40 bg-black bg-opacity-10 pointer-events-auto" 
@@ -1658,14 +1750,44 @@
 
                  // 上传的文章列表（从数据库获取）
                  const uploadedArticles = ref([]);
-                
-                 // 监听标签页切换，保存到 localStorage
+
+                // 版本信息
+                const versionInfo = ref({
+                    version: 'dev',
+                    build_date: '',
+                    git_commit: '',
+                    git_branch: '',
+                    repository: 'https://github.com/TIANXUAN13/ReadZen'
+                });
+                const loadingVersion = ref(false);
+
+                // 加载版本信息
+                const loadVersionInfo = async () => {
+                    loadingVersion.value = true;
+                    try {
+                        const res = await fetch('/api/version');
+                        if (res.ok) {
+                            versionInfo.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('获取版本信息失败:', e);
+                    } finally {
+                        loadingVersion.value = false;
+                    }
+                };
+
+                // 监听标签页切换，保存到 localStorage
                  watch(activeTab, (newTab) => {
                      localStorage.setItem('readzen_active_tab', newTab);
-                     
+
                      // 如果切换到上传相关的标签，自动展开上传菜单
                      if (['upload-file', 'upload-folder', 'upload-list'].includes(newTab)) {
                          isUploadMenuOpen.value = true;
+                     }
+
+                     // 切换到关于页面时加载版本信息
+                     if (newTab === 'about') {
+                         loadVersionInfo();
                      }
                  });
 
@@ -1715,7 +1837,8 @@
                          'profile': '个人信息',
                          'upload-file': '上传文件',
                          'upload-folder': '上传文件夹',
-                         'upload-list': '上传列表'
+                         'upload-list': '上传列表',
+                         'about': '关于'
                      };
                      return titleMap[activeTab.value] || '本地文章';
                  };
@@ -3348,7 +3471,11 @@ isSidebarCollapsed,
                           openForgotPassword,
                           closeForgotPassword,
                           sendResetCode,
-                          resetPassword
+                          resetPassword,
+                          // 版本信息
+                          versionInfo,
+                          loadingVersion,
+                          loadVersionInfo
                   };
             }
         }).mount('#app');
