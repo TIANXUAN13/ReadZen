@@ -9,6 +9,16 @@ DATA_DIR = os.environ.get("DATA_DIR", "./data")
 os.makedirs(DATA_DIR, exist_ok=True, mode=0o775)
 DB_PATH = os.path.join(DATA_DIR, "data.db")
 
+
+def get_conn():
+    """获取数据库连接 - 必须在 ENCRYPTION_KEY 初始化之前定义"""
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+    conn.row_factory = sqlite3.Row
+    # 启用 UTF-8 支持
+    conn.execute('PRAGMA encoding = "UTF-8"')
+    return conn
+
+
 # 加密密钥 - 生产环境应使用环境变量
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 
@@ -51,7 +61,7 @@ def get_encryption_key():
             print("[WARNING] ENCRYPTION_KEY not set. Generated and saved to database.")
         except Exception as e:
             print(f"[WARNING] ENCRYPTION_KEY not set. Generated random key (not persisted): {e}")
-    
+
     return ENCRYPTION_KEY
 
 # 初始化密钥
@@ -81,16 +91,9 @@ def decrypt_password(encrypted_password):
     try:
         cipher = get_cipher()
         return cipher.decrypt(encrypted_password.encode()).decode()
-    except Exception:
+    except Exception as e:
+        print(f"[ERROR] Failed to decrypt password: {e}")
         return encrypted_password
-
-
-def get_conn():
-    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
-    conn.row_factory = sqlite3.Row
-    # 启用 UTF-8 支持
-    conn.execute('PRAGMA encoding = "UTF-8"')
-    return conn
 
 
 def init_db():
