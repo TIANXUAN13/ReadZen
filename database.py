@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
+from cryptography.fernet import Fernet
 
 # 使用与 server.py 相同的数据目录
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
@@ -10,11 +11,89 @@ DB_PATH = os.path.join(DATA_DIR, "data.db")
 
 
 def get_conn():
+    """获取数据库连接 - 必须在 ENCRYPTION_KEY 初始化之前定义"""
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     # 启用 UTF-8 支持
     conn.execute('PRAGMA encoding = "UTF-8"')
     return conn
+
+
+# 加密密钥 - 生产环境应使用环境变量
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
+
+def get_encryption_key():
+    """获取加密密钥，确保数据库已初始化"""
+    global ENCRYPTION_KEY
+    
+    if ENCRYPTION_KEY:
+        return ENCRYPTION_KEY
+    
+    # 先确保数据库已初始化
+    try:
+        init_db()
+    except Exception:
+        pass
+    
+    # 尝试从数据库获取
+    key_from_db = None
+    try:
+        conn = get_conn()
+        row = conn.execute("SELECT config_value FROM system_config WHERE config_key = 'encryption_key'").fetchone()
+        conn.close()
+        if row and row["config_value"]:
+            key_from_db = row["config_value"]
+    except Exception:
+        pass
+    
+    if key_from_db:
+        ENCRYPTION_KEY = key_from_db
+    else:
+        ENCRYPTION_KEY = Fernet.generate_key().decode()
+        try:
+            conn = get_conn()
+            conn.execute(
+                "INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES ('encryption_key', ?, datetime('now'))",
+                (ENCRYPTION_KEY,)
+            )
+            conn.commit()
+            conn.close()
+            print("[WARNING] ENCRYPTION_KEY not set. Generated and saved to database.")
+        except Exception as e:
+            print(f"[WARNING] ENCRYPTION_KEY not set. Generated random key (not persisted): {e}")
+
+    return ENCRYPTION_KEY
+
+# 初始化密钥
+get_encryption_key()
+
+_cipher = None
+def get_cipher():
+    global _cipher
+    if _cipher is None:
+        key = get_encryption_key()
+        try:
+            _cipher = Fernet(key.encode() if isinstance(key, str) else key)
+        except Exception:
+            _cipher = Fernet.generate_key()
+            _cipher = Fernet(_cipher)
+    return _cipher
+
+def encrypt_password(password):
+    if not password:
+        return password
+    cipher = get_cipher()
+    return cipher.encrypt(password.encode()).decode()
+
+def decrypt_password(encrypted_password):
+    if not encrypted_password:
+        return encrypted_password
+    try:
+        cipher = get_cipher()
+        return cipher.decrypt(encrypted_password.encode()).decode()
+    except Exception as e:
+        print(f"[ERROR] Failed to decrypt password: {e}")
+        return encrypted_password
 
 
 def init_db():
@@ -44,12 +123,14 @@ def init_db():
     cur.execute(
         """CREATE TABLE IF NOT EXISTS uploaded_articles (
            id INTEGER PRIMARY KEY AUTOINCREMENT,
+           user_id INTEGER,
            title TEXT NOT NULL,
            author TEXT,
            content TEXT NOT NULL,
            file_name TEXT,
            file_size INTEGER,
-           date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY(user_id) REFERENCES users(id)
         )"""
     )
     cur.execute(
@@ -83,22 +164,9 @@ def init_db():
            type TEXT NOT NULL,
            expires_at TIMESTAMP NOT NULL,
            used INTEGER DEFAULT 0,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-           FOREIGN KEY(user_id) REFERENCES users(id)
-        )"""
-    )
-    
-    cur.execute(
-        """CREATE TABLE IF NOT EXISTS email_verifications (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           user_id INTEGER NOT NULL,
-           email TEXT NOT NULL,
-           code TEXT NOT NULL,
-           expires_at TIMESTAMP NOT NULL,
-           used INTEGER DEFAULT 0,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-           FOREIGN KEY(user_id) REFERENCES users(id)
-        )"""
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+         )"""
     )
     
     cur.execute("PRAGMA table_info(users)")
@@ -107,6 +175,13 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN email TEXT")
     if 'email_verified' not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
+    if 'role' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+    
+    cur.execute("PRAGMA table_info(uploaded_articles)")
+    article_columns = [col[1] for col in cur.fetchall()]
+    if 'user_id' not in article_columns:
+        cur.execute("ALTER TABLE uploaded_articles ADD COLUMN user_id INTEGER REFERENCES users(id)")
     
     conn.commit()
     conn.close()
@@ -124,9 +199,10 @@ def create_user(username, password, email=None):
     hashed = generate_password_hash(password)
     conn = get_conn()
     cur = conn.cursor()
+    role = 'admin' if username == 'admin' else 'user'
     cur.execute(
-        "INSERT INTO users (username, password, email) VALUES (?, ?, ?)", 
-        (username, hashed, email)
+        "INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, ?)", 
+        (username, hashed, email, role)
     )
     conn.commit()
     user_id = cur.lastrowid
@@ -196,6 +272,44 @@ def get_all_users():
     return [dict(r) for r in rows]
 
 
+def get_users_paginated(page=1, per_page=10):
+    """获取分页用户列表"""
+    conn = get_conn()
+    offset = (page - 1) * per_page
+
+    # 获取总数
+    total_row = conn.execute("SELECT COUNT(*) as count FROM users").fetchone()
+    total = total_row["count"] if total_row else 0
+
+    # 获取分页数据
+    rows = conn.execute(
+        "SELECT id, username, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (per_page, offset)
+    ).fetchall()
+    conn.close()
+
+    return {
+        "users": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 0
+    }
+
+
+def delete_users(user_ids):
+    """批量删除用户"""
+    conn = get_conn()
+    placeholders = ",".join("?" * len(user_ids))
+    # 先删除用户的收藏
+    conn.execute(f"DELETE FROM favorites WHERE user_id IN ({placeholders})", user_ids)
+    # 删除用户
+    conn.execute(f"DELETE FROM users WHERE id IN ({placeholders})", user_ids)
+    conn.commit()
+    conn.close()
+    return len(user_ids)
+
+
 def get_user_by_id(user_id):
     conn = get_conn()
     row = conn.execute(
@@ -216,9 +330,8 @@ def delete_user(user_id):
 
 
 # 上传文章相关函数
-def save_uploaded_article(title, author, content, file_name="", file_size=0):
+def save_uploaded_article(title, author, content, file_name="", file_size=0, user_id=None):
     """保存上传的文章（确保 UTF-8 编码）"""
-    # 确保字符串是 UTF-8 编码
     if isinstance(title, str):
         title = title.encode("utf-8").decode("utf-8")
     if isinstance(author, str):
@@ -231,14 +344,24 @@ def save_uploaded_article(title, author, content, file_name="", file_size=0):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        """INSERT INTO uploaded_articles (title, author, content, file_name, file_size)
-                   VALUES (?, ?, ?, ?, ?)""",
-        (title, author, content, file_name, file_size),
+        """INSERT INTO uploaded_articles (user_id, title, author, content, file_name, file_size)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+        (user_id, title, author, content, file_name, file_size),
     )
     conn.commit()
     article_id = cur.lastrowid
     conn.close()
     return article_id
+
+
+def get_uploaded_article_by_id(article_id):
+    """根据ID获取上传的文章"""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM uploaded_articles WHERE id = ?", (article_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def get_uploaded_articles():
@@ -313,6 +436,16 @@ def get_smtp_config():
     for key in config_keys:
         value = get_config(key)
         if value is not None:
+            if key == 'smtp_password' and value:
+                try:
+                    decrypted = decrypt_password(value)
+                    if decrypted:
+                        value = decrypted
+                    else:
+                        value = None
+                except Exception as e:
+                    print(f"[WARNING] Failed to decrypt SMTP password: {e}")
+                    value = None
             config[key] = value
     return config
 
@@ -323,7 +456,7 @@ def update_smtp_config(config_dict):
         'smtp_server': 'SMTP服务器地址',
         'smtp_port': 'SMTP端口',
         'smtp_username': 'SMTP用户名',
-        'smtp_password': 'SMTP密码',
+        'smtp_password': 'SMTP密码（加密存储）',
         'smtp_from_name': '发件人名称',
         'smtp_from_email': '发件人邮箱',
         'smtp_use_ssl': '使用SSL',
@@ -331,6 +464,8 @@ def update_smtp_config(config_dict):
         'smtp_enabled': '启用SMTP'
     }
     for key, value in config_dict.items():
+        if key == 'smtp_password' and value:
+            value = encrypt_password(value)
         set_config(key, value, descriptions.get(key))
 
 

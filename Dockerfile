@@ -48,7 +48,7 @@ RUN apt-get update && \
     chmod 777 $DATA_DIR
 
 # 拷贝应用核心代码
-COPY server.py database.py index.html ./
+COPY server.py database.py index.html version.json ./
 
 # 【构建时初始化】在镜像内生成预置数据库
 RUN export DATA_DIR=$PRELOADED_DIR && \
