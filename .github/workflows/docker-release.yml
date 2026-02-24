@@ -106,7 +106,6 @@ jobs:
             --tag readzen:slim \
             --http-probe \
             --expose 15000 \
-            --http-probe-cmd "GET /api/daily" \
             --include-path /app/data \
             --include-path /app/preloaded_data \
             --include-path /usr/local/lib \
