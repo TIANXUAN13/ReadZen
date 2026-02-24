@@ -34,6 +34,7 @@ from database import (
     delete_users,
     get_user_username,
     get_uploaded_articles,
+    get_uploaded_article_by_id,
     save_uploaded_article,
     delete_uploaded_article,
     delete_all_uploaded_articles,
@@ -315,20 +316,17 @@ def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: st
 @app.route("/api/captcha", methods=["GET"])
 def get_captcha():
     """生成并返回验证码图片"""
-    # 生成随机验证码
-    captcha_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    # 存储到会话中
+    import secrets
+    captcha_code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
     session["captcha"] = captcha_code
     session["captcha_time"] = datetime.now().timestamp()
 
-    # 生成自定义验证码图片（使用主题色）
     image_data = generate_custom_captcha(captcha_code, bg_color='#fdfbf7', text_color='#374151')
 
-    # 返回base64编码的图片
     return jsonify(
         {
             "captcha_image": base64.b64encode(image_data).decode("utf-8"),
-            "expires_in": 300,  # 5分钟有效期
+            "expires_in": 300,
         }
     )
 
@@ -443,17 +441,9 @@ def initialize_application():
 def create_admin_user():
     """启动时检查并创建 admin 用户"""
     try:
-        # 此时数据库一定存在了，建立连接检查
-        # 注意：这里需要临时修改 database.py 里的 DB_PATH 或者确保 database.py 引用的是正确的全局路径
-        # 由于 database.py 里的路径可能是硬编码或导入时确定的，建议在 database.py 里也做相应调整
-        # 这里假设 database.py 会读取环境变量或者我们不需要修改它（如果它每次都读文件）
-        # 为了保险，我们重新初始化一下 database 模块里的路径（如果那是动态的）
-        # 但通常 init_db() 里的逻辑依赖 database.py 的实现。
-        # 简单调用 get_user_by_username 即可，如果报错说明表结构不对，再次 init_db
         try:
             admin_user = get_user_by_username("admin")
         except sqlite3.OperationalError:
-            # 如果表不存在（比如复制的文件损坏），重新建表
             init_db()
             admin_user = get_user_by_username("admin")
 
@@ -461,7 +451,7 @@ def create_admin_user():
             admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
             if admin_password:
                 create_user("admin", admin_password)
-                print(f"[INFO] Admin user created with password: {admin_password}")
+                print("[INFO] Admin user created with default password")
     except Exception as e:
         print(f"[WARNING] Failed to check/create admin user: {e}")
 
@@ -825,6 +815,7 @@ def save_uploaded():
     """保存上传的文章"""
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
     data = request.json or {}
     title = data.get("title")
     author = data.get("author", "佚名")
@@ -856,7 +847,7 @@ def save_uploaded():
     if existing:
         return jsonify({"id": existing[0], "message": "文章已存在，跳过上传"}), 200
 
-    article_id = save_uploaded_article(title, author, content, file_name, file_size)
+    article_id = save_uploaded_article(title, author, content, file_name, file_size, user_id)
     return jsonify({"id": article_id})
 
 
@@ -865,6 +856,15 @@ def delete_uploaded(article_id):
     """删除上传的文章"""
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
+    current_user_id = session["user_id"]
+    
+    article = get_uploaded_article_by_id(article_id)
+    if not article:
+        return jsonify({"error": "文章不存在"}), 404
+    
+    if article.get("user_id") != current_user_id:
+        return jsonify({"error": "无权限删除此文章"}), 403
+    
     delete_uploaded_article(article_id)
     return jsonify({"deleted": article_id})
 

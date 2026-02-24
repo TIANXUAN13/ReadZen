@@ -12,8 +12,27 @@ DB_PATH = os.path.join(DATA_DIR, "data.db")
 # 加密密钥 - 生产环境应使用环境变量
 ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
 if not ENCRYPTION_KEY:
-    ENCRYPTION_KEY = Fernet.generate_key().decode()
-    print("[WARNING] ENCRYPTION_KEY not set. Generated random key.")
+    # 尝试从数据库获取
+    try:
+        conn = get_conn()
+        row = conn.execute("SELECT config_value FROM system_config WHERE config_key = 'encryption_key'").fetchone()
+        conn.close()
+        if row and row["config_value"]:
+            ENCRYPTION_KEY = row["config_value"]
+        else:
+            ENCRYPTION_KEY = Fernet.generate_key().decode()
+            # 保存到数据库
+            conn = get_conn()
+            conn.execute(
+                "INSERT OR REPLACE INTO system_config (config_key, config_value, updated_at) VALUES ('encryption_key', ?, datetime('now'))",
+                (ENCRYPTION_KEY,)
+            )
+            conn.commit()
+            conn.close()
+            print("[WARNING] ENCRYPTION_KEY not set. Generated and saved to database.")
+    except Exception:
+        ENCRYPTION_KEY = Fernet.generate_key().decode()
+        print("[WARNING] ENCRYPTION_KEY not set. Generated random key (not persisted).")
 
 _cipher = None
 def get_cipher():
@@ -77,12 +96,14 @@ def init_db():
     cur.execute(
         """CREATE TABLE IF NOT EXISTS uploaded_articles (
            id INTEGER PRIMARY KEY AUTOINCREMENT,
+           user_id INTEGER,
            title TEXT NOT NULL,
            author TEXT,
            content TEXT NOT NULL,
            file_name TEXT,
            file_size INTEGER,
-           date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+           date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           FOREIGN KEY(user_id) REFERENCES users(id)
         )"""
     )
     cur.execute(
@@ -129,6 +150,11 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
     if 'role' not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
+    
+    cur.execute("PRAGMA table_info(uploaded_articles)")
+    article_columns = [col[1] for col in cur.fetchall()]
+    if 'user_id' not in article_columns:
+        cur.execute("ALTER TABLE uploaded_articles ADD COLUMN user_id INTEGER REFERENCES users(id)")
     
     conn.commit()
     conn.close()
@@ -277,9 +303,8 @@ def delete_user(user_id):
 
 
 # 上传文章相关函数
-def save_uploaded_article(title, author, content, file_name="", file_size=0):
+def save_uploaded_article(title, author, content, file_name="", file_size=0, user_id=None):
     """保存上传的文章（确保 UTF-8 编码）"""
-    # 确保字符串是 UTF-8 编码
     if isinstance(title, str):
         title = title.encode("utf-8").decode("utf-8")
     if isinstance(author, str):
@@ -292,14 +317,24 @@ def save_uploaded_article(title, author, content, file_name="", file_size=0):
     conn = get_conn()
     cur = conn.cursor()
     cur.execute(
-        """INSERT INTO uploaded_articles (title, author, content, file_name, file_size)
-                   VALUES (?, ?, ?, ?, ?)""",
-        (title, author, content, file_name, file_size),
+        """INSERT INTO uploaded_articles (user_id, title, author, content, file_name, file_size)
+                   VALUES (?, ?, ?, ?, ?, ?)""",
+        (user_id, title, author, content, file_name, file_size),
     )
     conn.commit()
     article_id = cur.lastrowid
     conn.close()
     return article_id
+
+
+def get_uploaded_article_by_id(article_id):
+    """根据ID获取上传的文章"""
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT * FROM uploaded_articles WHERE id = ?", (article_id,)
+    ).fetchone()
+    conn.close()
+    return dict(row) if row else None
 
 
 def get_uploaded_articles():
@@ -401,7 +436,6 @@ def update_smtp_config(config_dict):
     for key, value in config_dict.items():
         if key == 'smtp_password' and value:
             value = encrypt_password(value)
-        set_config(key, value, descriptions.get(key))
         set_config(key, value, descriptions.get(key))
 
 
