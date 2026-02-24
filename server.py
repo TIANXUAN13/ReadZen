@@ -635,7 +635,7 @@ def register():
 @limiter.limit("30 per hour")  # 限制登录接口每小时最多30次请求（有验证码保护，可适当放宽）
 def login():
     data = request.json or {}
-    username = data.get("username")
+    username_or_email = data.get("username", "").strip()
     password = data.get("password")
     captcha = data.get("captcha", "").strip().upper()
 
@@ -658,22 +658,32 @@ def login():
     session.pop("captcha", None)
     session.pop("captcha_time", None)
 
-    ok, user_id = verify_user(username, password)
-    if not ok:
+    # 判断是邮箱还是用户名
+    user = None
+    if "@" in username_or_email:
+        # 邮箱登录
+        user = get_user_by_email(username_or_email)
+    else:
+        # 用户名登录
+        user = get_user_by_username(username_or_email)
+
+    if not user:
         return jsonify({"error": "invalid credentials"}), 401
+
+    # 验证密码
+    if not check_password_hash(user["password"], password):
+        return jsonify({"error": "invalid credentials"}), 401
+
+    user_id = user["id"]
+    username = user["username"]
+
     session["user_id"] = user_id
     session["username"] = username
-    
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT id, username, email FROM users WHERE id = ?", (user_id,)
-    ).fetchone()
-    conn.close()
-    
+
     return jsonify({
-        "id": user_id, 
+        "id": user_id,
         "username": username,
-        "email": row["email"] if row else None
+        "email": user["email"]
     })
 
 

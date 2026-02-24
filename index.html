@@ -523,10 +523,10 @@
                             <transition name="auth-slide" mode="out-in">
                                 <!-- 登录表单 -->
                                 <div v-if="authMode === 'login'" key="login" class="space-y-4">
-                                    <input 
+                                    <input
                                         v-model="loginForm.username"
                                         type="text"
-                                        placeholder="您的用户名"
+                                        placeholder="用户名或邮箱"
                                         class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                         :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                     />
