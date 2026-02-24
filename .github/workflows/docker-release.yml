@@ -105,7 +105,6 @@ jobs:
             --tag ${IMAGE_NAME}:${TAG} \
             --tag readzen:slim \
             --http-probe \
-            --http-probe-timeout 60s \
             --expose 15000 \
             --include-path /app \
             --include-path /usr/local/lib \
