@@ -105,13 +105,10 @@ jobs:
             --tag ${IMAGE_NAME}:${TAG} \
             --tag readzen:slim \
             --http-probe \
+            --http-probe-timeout 60s \
             --expose 15000 \
-            --include-path /app/data \
-            --include-path /app/preloaded_data \
+            --include-path /app \
             --include-path /usr/local/lib \
-            --include-bin /usr/bin/python3.10 \
-            --include-bin /usr/local/bin/gunicorn \
-            --include-bin /usr/bin/sqlite3 \
             --env PORT=15000 \
             --env HOST=0.0.0.0
 
