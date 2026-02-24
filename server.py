@@ -165,8 +165,8 @@ def validate_password(password: str) -> tuple[bool, str]:
 
     return True, ""
 
-def send_verification_email(to_email, code, username):
-    """发送邮箱验证邮件"""
+def send_html_email(to_email, subject, html_body):
+    """发送HTML邮件"""
     import smtplib
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
@@ -185,23 +185,12 @@ def send_verification_email(to_email, code, username):
     use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
     use_tls = config.get("smtp_use_tls", "true").lower() == "true"
     
-    msg = MIMEMultipart()
+    msg = MIMEMultipart("alternative")
     msg["From"] = f"{from_name} <{from_email}>"
     msg["To"] = to_email
-    msg["Subject"] = "ReadZen 邮箱验证"
+    msg["Subject"] = subject
     
-    body = f"""
-您好，{username}！
-
-感谢您注册 ReadZen。您的邮箱验证码为：{code}
-
-验证码有效期为 24 小时，请尽快完成验证。
-
-如果这不是您的操作，请忽略此邮件。
-
-- ReadZen 团队
-"""
-    msg.attach(MIMEText(body, "plain", "utf-8"))
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
     
     if use_ssl:
         server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
@@ -213,6 +202,99 @@ def send_verification_email(to_email, code, username):
     server.login(smtp_username, smtp_password)
     server.sendmail(from_email, to_email, msg.as_string())
     server.quit()
+
+
+def get_email_template(title, greeting, content, code=None, code_label="验证码", expiry_hours=None):
+    """生成美观的HTML邮件模板"""
+    code_block = ""
+    if code:
+        expiry_text = f"有效期 {expiry_hours} 小时" if expiry_hours else ""
+        code_block = f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
+            <div style="color: rgba(255,255,255,0.9); font-size: 14px; margin-bottom: 8px;">{code_label}</div>
+            <div style="color: #fff; font-size: 36px; font-weight: bold; letter-spacing: 8px; font-family: 'Courier New', monospace;">{code}</div>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 12px;">{expiry_text}</div>
+        </div>
+        """
+    
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 500px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 32px; text-align: center;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">ReadZen</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 32px;">
+                            <h2 style="color: #333333; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">{title}</h2>
+                            <p style="color: #666666; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">
+                                {greeting}
+                            </p>
+                            {code_block}
+                            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 16px; margin: 24px 0;">
+                                <p style="color: #666666; margin: 0; font-size: 13px; line-height: 1.6;">
+                                    {content}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 24px; text-align: center; border-top: 1px solid #eeeeee;">
+                            <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px;">
+                                如果您没有进行此操作，请忽略此邮件。
+                            </p>
+                            <p style="color: #999999; margin: 0; font-size: 12px;">
+                                © 2026 ReadZen. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+    return html
+
+
+def send_verification_email(to_email, code, username, email_type="register"):
+    """发送邮箱验证邮件
+    
+    Args:
+        to_email: 收件人邮箱
+        code: 验证码
+        username: 用户名
+        email_type: 邮件类型，register-注册验证，change_email-修改邮箱验证
+    """
+    if email_type == "change_email":
+        subject = "【ReadZen】邮箱修改验证"
+        title = "验证新邮箱"
+        greeting = f"您好，{username}！您正在修改邮箱地址。"
+        content = "请使用上面的验证码完成邮箱修改。验证码只能使用一次，请勿泄露给他人。"
+    else:
+        subject = "【ReadZen】邮箱验证"
+        title = "验证您的邮箱"
+        greeting = f"您好，{username}！感谢您注册 ReadZen。"
+        content = "请使用上面的验证码完成邮箱验证。验证码只能使用一次，请勿泄露给他人。"
+    
+    html_body = get_email_template(title, greeting, content, code, "邮箱验证码", 24)
+    send_html_email(to_email, subject, html_body)
 
 # 验证码图片生成器
 captcha_generator = ImageCaptcha(width=160, height=60)
@@ -724,7 +806,7 @@ def change_email():
         create_email_verification(user_id, new_email, verification_code, 'change_email', expires_at)
         
         try:
-            send_verification_email(new_email, verification_code, current_user["username"])
+            send_verification_email(new_email, verification_code, current_user["username"], "change_email")
             return jsonify({"success": True, "message": "验证邮件已发送到新邮箱", "need_code": True})
         except Exception as e:
             print(f"[ERROR] Failed to send verification email: {e}")
@@ -1147,31 +1229,12 @@ def admin_test_smtp():
         return jsonify({"error": "SMTP未配置完整"}), 400
     
     try:
-        smtp_server = config.get("smtp_server", "")
-        smtp_port = int(config.get("smtp_port", 587))
-        smtp_username = config.get("smtp_username", "")
-        smtp_password = config.get("smtp_password", "")
-        from_name = config.get("smtp_from_name", "ReadZen")
-        from_email = config.get("smtp_from_email", smtp_username)
-        use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
-        use_tls = config.get("smtp_use_tls", "true").lower() == "true"
-        
-        msg = MIMEMultipart()
-        msg["From"] = f"{from_name} <{from_email}>"
-        msg["To"] = test_email
-        msg["Subject"] = "ReadZen SMTP 测试邮件"
-        msg.attach(MIMEText("这是一封测试邮件，SMTP配置成功！", "plain", "utf-8"))
-        
-        if use_ssl:
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
-        else:
-            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-            if use_tls:
-                server.starttls()
-        
-        server.login(smtp_username, smtp_password)
-        server.sendmail(from_email, test_email, msg.as_string())
-        server.quit()
+        subject = "【ReadZen】SMTP 测试邮件"
+        title = "测试成功"
+        greeting = "您好，这是来自 ReadZen 的测试邮件。"
+        content = "如果您收到这封邮件，说明 SMTP 配置正确，您可以正常使用邮件功能了。"
+        html_body = get_email_template(title, greeting, content)
+        send_html_email(test_email, subject, html_body)
         
         return jsonify({"success": True, "message": f"测试邮件已发送至 {test_email}"})
     except Exception as e:
@@ -1221,9 +1284,6 @@ def check_smtp_enabled():
 
 @app.route("/api/auth/forgot-password", methods=["POST"])
 def forgot_password():
-    import smtplib
-    from email.mime.text import MIMEText
-    from email.mime.multipart import MIMEMultipart
     from datetime import timedelta
     
     data = request.get_json() or {}
@@ -1249,43 +1309,12 @@ def forgot_password():
     create_password_reset(email, code, expires_at, user["id"])
     
     try:
-        smtp_server = config.get("smtp_server", "")
-        smtp_port = int(config.get("smtp_port", 587))
-        smtp_username = config.get("smtp_username", "")
-        smtp_password = config.get("smtp_password", "")
-        from_name = config.get("smtp_from_name", "ReadZen")
-        from_email = config.get("smtp_from_email", smtp_username)
-        use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
-        use_tls = config.get("smtp_use_tls", "true").lower() == "true"
-        
-        msg = MIMEMultipart()
-        msg["From"] = f"{from_name} <{from_email}>"
-        msg["To"] = email
-        msg["Subject"] = "ReadZen 密码重置验证码"
-        
-        body = f"""
-您好，
-
-您正在重置 ReadZen 账户密码，验证码为：{code}
-
-验证码有效期为 10 分钟，请尽快完成重置。
-
-如果这不是您的操作，请忽略此邮件。
-
-- ReadZen 团队
-"""
-        msg.attach(MIMEText(body, "plain", "utf-8"))
-        
-        if use_ssl:
-            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
-        else:
-            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-            if use_tls:
-                server.starttls()
-        
-        server.login(smtp_username, smtp_password)
-        server.sendmail(from_email, email, msg.as_string())
-        server.quit()
+        subject = "【ReadZen】密码重置"
+        title = "重置您的密码"
+        greeting = "您好，我们收到了您的密码重置请求。"
+        content = "请使用上面的验证码重置您的密码。如果这不是您本人操作，请立即更改您的账户密码。"
+        html_body = get_email_template(title, greeting, content, code, "重置验证码", expiry_hours=10)
+        send_html_email(email, subject, html_body)
         
         return jsonify({"success": True, "message": "验证码已发送至您的邮箱"})
     except Exception as e:
