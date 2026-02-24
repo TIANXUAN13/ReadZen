@@ -57,6 +57,16 @@ from database import (
     verify_user_email,
     update_user_email_with_verification,
     get_user_email_verified,
+    add_article_source,
+    get_article_sources,
+    get_article_source_by_id,
+    update_article_source,
+    delete_article_source,
+    toggle_article_source,
+    get_global_polling_algorithm,
+    set_global_polling_algorithm,
+    update_user_email_with_verification,
+    get_user_email_verified,
 )
 
 PRELOADED_DB_PATH = "/app/preloaded_data/data.db"
@@ -1088,56 +1098,224 @@ def download_favorites_zip():
     )
 
 
-# Daily article proxy
-@app.route("/api/daily", methods=["GET"])
-# 取消速率限制，这是用户获取文章的主要接口
-def daily():
-    """获取每日一文"""
-    # 备用API列表
-    api_urls = [
-        "https://api.qhsou.com/api/one.php"
-    ]
+# === 文章源管理 API ===
 
-    article_data = None
+@app.route("/api/sources", methods=["GET"])
+def get_sources():
+    """获取文章源列表"""
+    enabled_only = request.args.get("enabled", "false").lower() == "true"
+    sources = get_article_sources(enabled_only)
+    global_algorithm = get_global_polling_algorithm()
+    return jsonify({
+        "sources": sources,
+        "globalAlgorithm": global_algorithm
+    })
 
-    for api_url in api_urls:
+
+@app.route("/api/sources", methods=["POST"])
+def add_source():
+    """添加文章源"""
+    data = request.json or {}
+    name = data.get("name", "").strip()
+    url = data.get("url", "").strip()
+    api_validation = data.get("api_validation", "").strip() or None
+    polling_algorithm = data.get("polling_algorithm", "sequential")
+    
+    if not name or not url:
+        return jsonify({"error": "name和url是必填项"}), 400
+    
+    if polling_algorithm not in ("sequential", "random"):
+        polling_algorithm = "sequential"
+    
+    # 验证API是否可访问
+    if url:
         try:
-            # 增加 verify=False 提高在受限网络环境下的兼容性
-            resp = requests.get(api_url, timeout=10, verify=False)
-            if resp.ok:
-                data = resp.json()
-                # 尝试多种API返回格式
-                if isinstance(data, dict):
-                    article_data = {
-                        "id": data.get("id")
-                        or data.get("date")
-                        or str(int.from_bytes(os.urandom(2), "little")),
-                        "title": data.get("title")
-                        or data.get("c_title")
-                        or data.get("tt")
-                        or "无标题",
-                        "author": data.get("author") or data.get("c_author") or "未知",
-                        "content": data.get("content")
-                        or data.get("c_content")
-                        or data.get("text")
-                        or data.get("dc")
-                        or "<p>暂无内容</p>",
-                    }
-                    break
+            resp = requests.get(url, timeout=10, verify=False)
+            if not resp.ok:
+                return jsonify({"error": f"API地址不可访问: {resp.status_code}"}), 400
+            
+            if api_validation:
+                try:
+                    data_resp = resp.json()
+                    keys = [k.strip() for k in api_validation.split(",")]
+                    for key in keys:
+                        if key not in data_resp:
+                            return jsonify({"error": f"API验证失败: 缺少字段 {key}"}), 400
+                except:
+                    return jsonify({"error": "API验证失败: 返回的不是有效的JSON"}), 400
+        except requests.exceptions.Timeout:
+            return jsonify({"error": "API地址超时"}), 400
         except Exception as e:
-            print(f"[WARNING] Failed to fetch from {api_url}: {e}")
-            continue
+            return jsonify({"error": f"API地址无效: {str(e)}"}), 400
+    
+    source_id = add_article_source(name, url, api_validation, polling_algorithm, 1)
+    return jsonify({"id": source_id, "message": "文章源添加成功"})
 
-    # 如果所有API都失败，返回错误 (状态码改为 503 避免触发网关 502)
-    if not article_data:
+
+@app.route("/api/sources/<int:source_id>", methods=["PUT"])
+def update_source(source_id):
+    """更新文章源"""
+    data = request.json or {}
+    name = data.get("name")
+    url = data.get("url")
+    api_validation = data.get("api_validation")
+    polling_algorithm = data.get("polling_algorithm")
+    enabled = data.get("enabled")
+    
+    if polling_algorithm and polling_algorithm not in ("sequential", "random"):
+        return jsonify({"error": "polling_algorithm必须是sequential或random"}), 400
+    
+    if enabled is not None and not isinstance(enabled, bool):
+        enabled = bool(enabled)
+    
+    success = update_article_source(source_id, name, url, api_validation, polling_algorithm, enabled)
+    if not success:
+        return jsonify({"error": "文章源不存在"}), 404
+    
+    return jsonify({"message": "文章源更新成功"})
+
+
+@app.route("/api/sources/<int:source_id>", methods=["DELETE"])
+def delete_source(source_id):
+    """删除文章源"""
+    delete_article_source(source_id)
+    return jsonify({"deleted": source_id})
+
+
+@app.route("/api/sources/<int:source_id>/toggle", methods=["POST"])
+def toggle_source(source_id):
+    """切换文章源启用状态"""
+    toggle_article_source(source_id)
+    source = get_article_source_by_id(source_id)
+    return jsonify({"enabled": source["enabled"] if source else False})
+
+
+@app.route("/api/sources/algorithm", methods=["POST"])
+def set_algorithm():
+    """设置全局轮询算法"""
+    data = request.json or {}
+    algorithm = data.get("algorithm", "sequential")
+    
+    if algorithm not in ("sequential", "random"):
+        return jsonify({"error": "algorithm必须是sequential或random"}), 400
+    
+    set_global_polling_algorithm(algorithm)
+    return jsonify({"message": "轮询算法已更新", "algorithm": algorithm})
+
+
+# === 轮询获取文章 ===
+
+def fetch_article_from_source(source):
+    """从指定文章源获取文章，返回 (article_data, error_type)
+    error_type: None (成功), 'timeout' (超时), 'connection' (连接错误), 'invalid' (数据无效)
+    """
+    url = source.get("url")
+    if not url:
+        return None, "invalid"
+    
+    try:
+        resp = requests.get(url, timeout=10, verify=False)
+        if not resp.ok:
+            return None, "invalid"
+        
+        data = resp.json()
+        if isinstance(data, dict):
+            article = {
+                "id": data.get("id") or data.get("date") or str(int.from_bytes(os.urandom(2), "little")),
+                "title": data.get("title") or data.get("c_title") or data.get("tt") or "无标题",
+                "author": data.get("author") or data.get("c_author") or "未知",
+                "content": data.get("content") or data.get("c_content") or data.get("text") or data.get("dc") or "<p>暂无内容</p>",
+                "source": source.get("name")
+            }
+            return article, None
+        return None, "invalid"
+    except requests.exceptions.Timeout:
+        print(f"[WARNING] Timeout fetching from {url}")
+        return None, "timeout"
+    except requests.exceptions.RequestException:
+        print(f"[WARNING] Connection error fetching from {url}")
+        return None, "connection"
+    except Exception as e:
+        print(f"[WARNING] Failed to fetch from {url}: {e}")
+        return None, "invalid"
+
+
+def get_next_source_index(sources, current_index, algorithm):
+    """根据轮询算法获取下一个源索引"""
+    if not sources:
+        return -1
+    
+    if algorithm == "random":
+        import random
+        return random.randint(0, len(sources) - 1)
+    else:
+        return (current_index + 1) % len(sources)
+
+
+_current_source_index = {"index": -1}
+
+
+# 替换原有的 /api/daily 接口
+# 删除旧的 daily 函数定义，从下面开始
+
+
+@app.route("/api/daily", methods=["GET"])
+def daily():
+    """获取每日一文（支持多源轮询）"""
+    sources = get_article_sources(enabled_only=True)
+    
+    # 如果没有启用的源，直接返回错误
+    if not sources:
+        return jsonify(
+            {
+                "error": "no sources enabled",
+                "message": '无可用源，请在"文章来源"页面启用至少一个源。',
+            }
+        ), 503
+    
+    global_algorithm = get_global_polling_algorithm()
+    
+    article_data = None
+    error_types = []  # 记录所有错误类型
+    
+    for i in range(len(sources)):
+        next_index = get_next_source_index(sources, _current_source_index["index"], global_algorithm)
+        _current_source_index["index"] = next_index
+        
+        source = sources[next_index]
+        article, error_type = fetch_article_from_source(source)
+        if article:
+            return jsonify(article)
+        if error_type:
+            error_types.append(error_type)
+    
+    # 所有源都失败，根据错误类型返回不同的提示
+    if "timeout" in error_types:
+        return jsonify(
+            {
+                "error": "all sources timeout",
+                "message": "所有源响应超时，请检查网络连接或稍后重试。",
+            }
+        ), 503
+    elif "connection" in error_types:
+        return jsonify(
+            {
+                "error": "connection failed",
+                "message": "无法连接到文章源，请检查源地址是否正确。",
+            }
+        ), 503
+    else:
         return jsonify(
             {
                 "error": "failed to fetch daily",
-                "message": '无法获取每日一文，请检查容器网络连接。你可以通过"上传中心"功能上传本地文章进行阅读。',
+                "message": "无法从文章源获取文章，请检查源地址的可用性。",
             }
         ), 503
 
-    return jsonify(article_data)
+
+
+# 删除旧的 daily 函数定义，从下面开始
+
 
 
 # Version info API

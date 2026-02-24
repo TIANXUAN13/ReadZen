@@ -351,6 +351,25 @@
                               </button>
                           </li>
 
+                          <!-- 文章来源管理入口 (仅 admin 可见) -->
+                          <li v-if="user && user.username === 'admin'">
+                              <button
+                                  @click="activeTab = 'sources'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                      activeTab === 'sources'
+                                          ? (backgroundColor === 'dark' ? 'bg-indigo-600/20 text-indigo-400 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]' : 'bg-indigo-50 text-indigo-600 shadow-sm')
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-100 text-gray-600')
+                                  ]"
+                              >
+                                  <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transition-transform duration-300', activeTab === 'sources' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                  <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'sources' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v4a1 1 0 001 1h3m10 0h3a1 1 0 001-1V7m-6 10v-4m0 0V7m0 10h.01" />
+                                  </svg>
+                                  <span class="font-medium">文章来源</span>
+                              </button>
+                          </li>
+
                           <!-- 关于 -->
                           <li>
                               <button
@@ -1658,6 +1677,99 @@
                 </div>
             </div>
 
+            <!-- 文章来源管理页面 (仅 admin 可见) -->
+            <div v-else-if="activeTab === 'sources'" class="h-full overflow-y-auto p-6">
+                <div class="max-w-4xl mx-auto">
+                    <div v-if="!user || user.username !== 'admin'" class="text-center py-12">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <p class="text-lg opacity-60">权限不足</p>
+                        <p class="text-sm opacity-40 mt-2">只有管理员可以管理文章来源</p>
+                    </div>
+                    <div v-else>
+                        <div :class="['flex justify-between items-center gap-4 mb-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                            <div>
+                                <h3 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">文章来源管理</h3>
+                                <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">添加、编辑、启用/禁用并设置轮询算法</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <select v-model="globalAlgorithm" @change="setGlobalAlgorithm" :class="['px-3 py-1.5 rounded-lg text-sm border cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700']">
+                                    <option value="sequential">顺序轮询</option>
+                                    <option value="random">随机轮询</option>
+                                </select>
+                                <button @click="loadSources" :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']">刷新</button>
+                            </div>
+                        </div>
+
+                        <div :class="['rounded-lg overflow-hidden mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                            <div class="overflow-x-auto">
+                                <table class="w-full min-w-[600px] md:min-w-full">
+                                    <thead :class="['text-left text-sm font-medium', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700']">
+                                        <tr>
+                                            <th class="px-4 py-3">名称</th>
+                                            <th class="px-4 py-3">URL / 验证字段</th>
+                                            <th class="px-4 py-3">轮询算法</th>
+                                            <th class="px-4 py-3">状态</th>
+                                            <th class="px-4 py-3">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm" :class="backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700'">
+                                        <tr v-for="s in sources" :key="s.id" class="border-t">
+                                            <td class="px-4 py-3 align-top">
+                                                <div class="font-medium">{{ s.name }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <div class="text-xs break-all">{{ s.url }}</div>
+                                                <div class="text-xs opacity-60">{{ s.api_validation }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <select v-model="s.polling_algorithm" @change="updateSource(s)" class="px-2 py-1 text-sm rounded border">
+                                                    <option value="sequential">顺序</option>
+                                                    <option value="random">随机</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <label class="inline-flex items-center">
+                                                    <input type="checkbox" :checked="s.enabled" @change="toggleSource(s.id)" class="form-checkbox" />
+                                                    <span class="ml-2 text-sm">{{ s.enabled ? '已启用' : '已禁用' }}</span>
+                                                </label>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <div class="flex items-center gap-2">
+                                                    <button @click="editSource(s)" class="px-2 py-1 text-sm rounded border">编辑</button>
+                                                    <button @click="deleteSource(s.id)" class="px-2 py-1 text-sm rounded border text-red-600">删除</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div :class="['rounded-lg p-4', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                            <h4 class="text-sm font-medium mb-3">添加新文章源</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input v-model="newSource.name" placeholder="名称" class="px-3 py-2 border rounded" />
+                                <input v-model="newSource.url" placeholder="API 地址" class="px-3 py-2 border rounded" />
+                                <input v-model="newSource.api_validation" placeholder="验证字段 (逗号分隔，可选)" class="px-3 py-2 border rounded md:col-span-2" />
+                                <select v-model="newSource.polling_algorithm" class="px-3 py-2 border rounded">
+                                    <option value="sequential">顺序</option>
+                                    <option value="random">随机</option>
+                                </select>
+                                <div class="flex items-center gap-2">
+                                    <label class="inline-flex items-center"><input type="checkbox" v-model="newSource.enabled" class="form-checkbox" /> <span class="ml-2">启用</span></label>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex gap-2">
+                                <button @click="createSource" class="px-4 py-2 rounded bg-blue-500 text-white">添加</button>
+                                <button @click="() => { newSource.name=''; newSource.url=''; newSource.api_validation=''; newSource.polling_algorithm='sequential'; newSource.enabled=true }" class="px-4 py-2 rounded border">重置</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 修改邮箱弹窗 -->
             <div v-if="showChangeEmail" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showChangeEmail = false">
                 <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
@@ -1792,12 +1904,12 @@
 
                  // Toast 通知系统
                  const toasts = ref([]);
-                 const showToast = (msg, type = 'info') => {
+                 const showToast = (msg, type = 'info', duration = 3000) => {
                      const id = Date.now();
                      toasts.value.push({ id, msg, type });
                      setTimeout(() => {
                          toasts.value = toasts.value.filter(t => t.id !== id);
-                     }, 3000);
+                     }, duration);
                  };
 
                  // 上传的文章列表（从数据库获取）
@@ -2313,23 +2425,23 @@
                         // 使用后端代理接口获取文章，避免跨域问题
                         const response = await fetch('/api/daily', { credentials: 'include' });
                         
-                        if (!response.ok) {
-                            throw new Error('网络请求失败');
-                        }
-
                         const data = await response.json();
                         
                         // 检查是否是错误响应
-                        if (data.error) {
-                            throw new Error(data.message || '获取文章失败');
+                        if (data.error || !response.ok) {
+                            const errorMsg = data.message || '获取文章失败，请检查源配置';
+                            throw new Error(errorMsg);
                         }
                         
                         // 更新文章数据
                         article.value = data;
                         currentDailyArticle.value = data;
                     } catch (err) {
-                        console.error(err);
-                        error.value = data?.message || '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。';
+                        console.error('获取文章失败:', err);
+                        const errorMsg = err.message || '无法获取每日一文，请检查网络连接。';
+                        error.value = errorMsg;
+                        // 显示 toast 提示
+                        showToast(errorMsg, 'error', 4000);
                     } finally {
                         loading.value = false;
                     }
@@ -2798,6 +2910,134 @@
                 // 多选相关
                 const selectedUserIds = ref(new Set()); // 跨页多选，使用 Set 存储
                 const selectAllCurrentPage = ref(false);
+
+                // 文章来源管理
+                const sources = ref([]);
+                const loadingSources = ref(false);
+                const newSource = reactive({ name: '', url: '', api_validation: '', polling_algorithm: 'sequential', enabled: true });
+                const globalAlgorithm = ref('sequential');
+
+                const loadSources = async () => {
+                    if (!user.value || user.value.username !== 'admin') return;
+                    loadingSources.value = true;
+                    try {
+                        const res = await fetch('/api/sources', { credentials: 'include' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            sources.value = data.sources || [];
+                            globalAlgorithm.value = data.globalAlgorithm || 'sequential';
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '加载文章来源失败');
+                        }
+                    } catch (e) {
+                        console.error('加载文章来源失败:', e);
+                        alert('加载文章来源失败');
+                    } finally {
+                        loadingSources.value = false;
+                    }
+                };
+
+                const createSource = async () => {
+                    if (!newSource.name || !newSource.url) {
+                        alert('名称和URL不能为空');
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/sources', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify(newSource)
+                        });
+                        if (res.ok) {
+                            showToast('文章来源添加成功', 'success');
+                            newSource.name = ''; newSource.url = ''; newSource.api_validation = ''; newSource.polling_algorithm = 'sequential'; newSource.enabled = true;
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '添加失败');
+                        }
+                    } catch (e) {
+                        console.error('添加文章来源失败:', e);
+                        alert('添加失败');
+                    }
+                };
+
+                const deleteSource = async (id) => {
+                    if (!confirm('确定要删除该文章来源吗？')) return;
+                    try {
+                        const res = await fetch(`/api/sources/${id}`, { method: 'DELETE', credentials: 'include' });
+                        if (res.ok) {
+                            showToast('删除成功', 'success');
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '删除失败');
+                        }
+                    } catch (e) {
+                        console.error('删除失败:', e);
+                        alert('删除失败');
+                    }
+                };
+
+                const editSource = (s) => {
+                    // 简单地将条目复制到 newSource 以便编辑（覆盖添加表单）
+                    newSource.name = s.name || '';
+                    newSource.url = s.url || '';
+                    newSource.api_validation = s.api_validation || '';
+                    newSource.polling_algorithm = s.polling_algorithm || 'sequential';
+                    newSource.enabled = !!s.enabled;
+                    // 保存编辑时使用 updateSource
+                    newSource._editingId = s.id;
+                };
+
+                const updateSource = async (s) => {
+                    try {
+                        const id = s.id;
+                        const body = { name: s.name, url: s.url, api_validation: s.api_validation, polling_algorithm: s.polling_algorithm, enabled: !!s.enabled };
+                        const res = await fetch(`/api/sources/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
+                        if (res.ok) {
+                            showToast('更新成功', 'success');
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '更新失败');
+                        }
+                    } catch (e) {
+                        console.error('更新失败:', e);
+                        alert('更新失败');
+                    }
+                };
+
+                const toggleSource = async (id) => {
+                    try {
+                        const res = await fetch(`/api/sources/${id}/toggle`, { method: 'POST', credentials: 'include' });
+                        if (res.ok) {
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '切换失败');
+                        }
+                    } catch (e) {
+                        console.error('切换失败:', e);
+                        alert('切换失败');
+                    }
+                };
+
+                const setGlobalAlgorithm = async () => {
+                    try {
+                        const res = await fetch('/api/sources/algorithm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ algorithm: globalAlgorithm.value }) });
+                        if (res.ok) showToast('全局轮询算法已更新', 'success');
+                        else {
+                            const err = await res.json();
+                            alert(err.error || '更新失败');
+                        }
+                    } catch (e) {
+                        console.error('设置全局算法失败:', e);
+                        alert('设置失败');
+                    }
+                };
 
                 const loadAllUsers = async () => {
                     if (!user.value || user.value.username !== 'admin') {
@@ -3412,11 +3652,13 @@
                     }
                 };
 
-                // 当切换到用户管理页面时加载用户列表
+                // 当切换到用户管理或文章来源页面时加载相应数据
                 watch(() => activeTab.value, (newTab) => {
                     if (newTab === 'admin') {
                         loadAllUsers();
                         loadSmtpConfig();
+                    } else if (newTab === 'sources') {
+                        loadSources();
                     }
                 });
 
@@ -3425,10 +3667,13 @@
                      if (newUser) {
                          loadFavorites();
                          // 如果当前就在用户管理页面，登录后自动加载列表和SMTP配置
-                         if (activeTab.value === 'admin') {
-                             loadAllUsers();
-                             loadSmtpConfig();
-                         }
+                        if (activeTab.value === 'admin') {
+                            loadAllUsers();
+                            loadSmtpConfig();
+                        }
+                        if (activeTab.value === 'sources') {
+                            loadSources();
+                        }
                      } else {
                          favoriteArticles.value = [];
                          allUsers.value = [];
@@ -3564,6 +3809,18 @@
                          selectSingleFile,
 isSidebarCollapsed,
                           handleArticleScroll,
+                         // 文章来源管理
+                         sources,
+                         loadingSources,
+                         newSource,
+                         loadSources,
+                         createSource,
+                         deleteSource,
+                         editSource,
+                         updateSource,
+                         toggleSource,
+                         globalAlgorithm,
+                         setGlobalAlgorithm,
                           // SMTP 配置
                           smtpConfig,
                           smtpConfigTls,

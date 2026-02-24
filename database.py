@@ -186,6 +186,30 @@ def init_db():
     article_columns = [col[1] for col in cur.fetchall()]
     if 'user_id' not in article_columns:
         cur.execute("ALTER TABLE uploaded_articles ADD COLUMN user_id INTEGER REFERENCES users(id)")
+
+    # 文章源表（用于每日一文等功能的自定义来源）
+    cur.execute(
+        """CREATE TABLE IF NOT EXISTS article_sources (
+           id INTEGER PRIMARY KEY AUTOINCREMENT,
+           name TEXT NOT NULL,
+           url TEXT NOT NULL,
+           api_validation TEXT,
+           polling_algorithm TEXT DEFAULT 'sequential',
+           enabled INTEGER DEFAULT 1,
+           order_index INTEGER DEFAULT 0,
+           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )"""
+    )
+    
+    # 添加默认源（如果还不存在）
+    cur.execute("SELECT COUNT(*) FROM article_sources WHERE url = ?", ("https://api.qhsou.com/api/one.php",))
+    if cur.fetchone()[0] == 0:
+        cur.execute(
+            """INSERT INTO article_sources (name, url, api_validation, polling_algorithm, enabled, order_index)
+               VALUES (?, ?, ?, ?, ?, ?)""",
+            ("默认源", "https://api.qhsou.com/api/one.php", None, "sequential", 1, 0)
+        )
     
     conn.commit()
     conn.close()
@@ -652,3 +676,116 @@ def get_user_email_verified(user_id):
     ).fetchone()
     conn.close()
     return dict(row) if row else None
+
+
+# ---------------- Article sources management ----------------
+def add_article_source(name, url, api_validation=None, polling_algorithm="sequential", enabled=1, order_index=None):
+    """添加文章源，返回新插入的 id"""
+    conn = get_conn()
+    cur = conn.cursor()
+    if order_index is None:
+        # 默认放在末尾，根据现有最大 order_index +1
+        row = conn.execute("SELECT MAX(order_index) as m FROM article_sources").fetchone()
+        max_idx = row["m"] if row and row["m"] is not None else -1
+        order_index = max_idx + 1
+
+    cur.execute(
+        """INSERT INTO article_sources (name, url, api_validation, polling_algorithm, enabled, order_index)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (name, url, api_validation, polling_algorithm, int(enabled), order_index)
+    )
+    conn.commit()
+    sid = cur.lastrowid
+    conn.close()
+    return sid
+
+
+def get_article_sources(enabled_only=False):
+    conn = get_conn()
+    if enabled_only:
+        rows = conn.execute("SELECT * FROM article_sources WHERE enabled = 1 ORDER BY order_index ASC, id ASC").fetchall()
+    else:
+        rows = conn.execute("SELECT * FROM article_sources ORDER BY order_index ASC, id ASC").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
+def get_article_source_by_id(source_id):
+    conn = get_conn()
+    row = conn.execute("SELECT * FROM article_sources WHERE id = ?", (source_id,)).fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+
+def update_article_source(source_id, name=None, url=None, api_validation=None, polling_algorithm=None, enabled=None, order_index=None):
+    conn = get_conn()
+    cur = conn.cursor()
+    # 确认存在
+    existing = cur.execute("SELECT * FROM article_sources WHERE id = ?", (source_id,)).fetchone()
+    if not existing:
+        conn.close()
+        return False
+
+    fields = []
+    params = []
+    if name is not None:
+        fields.append("name = ?")
+        params.append(name)
+    if url is not None:
+        fields.append("url = ?")
+        params.append(url)
+    if api_validation is not None:
+        fields.append("api_validation = ?")
+        params.append(api_validation)
+    if polling_algorithm is not None:
+        fields.append("polling_algorithm = ?")
+        params.append(polling_algorithm)
+    if enabled is not None:
+        fields.append("enabled = ?")
+        params.append(int(enabled))
+    if order_index is not None:
+        fields.append("order_index = ?")
+        params.append(int(order_index))
+
+    if not fields:
+        conn.close()
+        return True
+
+    params.append(source_id)
+    sql = f"UPDATE article_sources SET {', '.join(fields)}, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+    cur.execute(sql, params)
+    conn.commit()
+    conn.close()
+    return True
+
+
+def delete_article_source(source_id):
+    conn = get_conn()
+    conn.execute("DELETE FROM article_sources WHERE id = ?", (source_id,))
+    conn.commit()
+    conn.close()
+
+
+def toggle_article_source(source_id):
+    conn = get_conn()
+    cur = conn.cursor()
+    row = cur.execute("SELECT enabled FROM article_sources WHERE id = ?", (source_id,)).fetchone()
+    if not row:
+        conn.close()
+        return False
+    new_val = 0 if int(row["enabled"]) else 1
+    cur.execute("UPDATE article_sources SET enabled = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (new_val, source_id))
+    conn.commit()
+    conn.close()
+    return True
+
+
+def get_global_polling_algorithm(default="sequential"):
+    val = get_config("global_polling_algorithm", default)
+    return val if val in ("sequential", "random") else default
+
+
+def set_global_polling_algorithm(algorithm):
+    if algorithm not in ("sequential", "random"):
+        algorithm = "sequential"
+    set_config("global_polling_algorithm", algorithm, description="全局文章源轮询算法")
