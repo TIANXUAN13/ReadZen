@@ -165,7 +165,7 @@ jobs:
           echo "tag=${TAG}" >> $GITHUB_OUTPUT
           echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
           echo "is_latest=false" >> $GITHUB_OUTPUT
-          if [ "$TAG" == "latest" ]; then
+          if [ "$TAG" == "latest" ] || [ -z "$TAG" ]; then
             echo "is_latest=true" >> $GITHUB_OUTPUT
           fi
 
@@ -173,7 +173,7 @@ jobs:
         if: steps.tag-info.outputs.is_latest == 'true'
         run: |
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/readzen"
-          TAG="${{ steps.tag-info.outputs.tag }}"
+          TAG="latest"
 
           echo "=== Debug Info ==="
           echo "Image name: ${IMAGE_NAME}"
@@ -210,8 +210,8 @@ jobs:
         if: steps.tag-info.outputs.is_latest == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag }}
-          name: Release ${{ github.event.inputs.tag }}
+          tag_name: latest
+          name: Release latest
           draft: false
           prerelease: false
           generate_release_notes: true
@@ -257,7 +257,7 @@ jobs:
             fi
           fi
 
-          if [ "$TAG" != "latest" ]; then
+          if [ "$TAG" == "latest" ] || [ -z "$TAG" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Release created at: https://github.com/${{ github.repository }}/releases/tag/${TAG}" >> $GITHUB_STEP_SUMMARY
+            echo "Release created at: https://github.com/${{ github.repository }}/releases/tag/latest" >> $GITHUB_STEP_SUMMARY
           fi
