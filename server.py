@@ -47,6 +47,7 @@ from database import (
     get_user_by_email,
     update_user_email,
     update_user_password,
+    update_user_username,
     create_password_reset,
     get_valid_password_reset,
     mark_password_reset_used,
@@ -634,7 +635,7 @@ def register():
 @limiter.limit("30 per hour")  # 限制登录接口每小时最多30次请求（有验证码保护，可适当放宽）
 def login():
     data = request.json or {}
-    username = data.get("username")
+    username_or_email = data.get("username", "").strip()
     password = data.get("password")
     captcha = data.get("captcha", "").strip().upper()
 
@@ -657,22 +658,32 @@ def login():
     session.pop("captcha", None)
     session.pop("captcha_time", None)
 
-    ok, user_id = verify_user(username, password)
-    if not ok:
+    # 判断是邮箱还是用户名
+    user = None
+    if "@" in username_or_email:
+        # 邮箱登录
+        user = get_user_by_email(username_or_email)
+    else:
+        # 用户名登录
+        user = get_user_by_username(username_or_email)
+
+    if not user:
         return jsonify({"error": "invalid credentials"}), 401
+
+    # 验证密码
+    if not check_password_hash(user["password"], password):
+        return jsonify({"error": "invalid credentials"}), 401
+
+    user_id = user["id"]
+    username = user["username"]
+
     session["user_id"] = user_id
     session["username"] = username
-    
-    conn = get_conn()
-    row = conn.execute(
-        "SELECT id, username, email FROM users WHERE id = ?", (user_id,)
-    ).fetchone()
-    conn.close()
-    
+
     return jsonify({
-        "id": user_id, 
+        "id": user_id,
         "username": username,
-        "email": row["email"] if row else None
+        "email": user["email"]
     })
 
 
@@ -848,6 +859,53 @@ def change_password():
     conn.commit()
     conn.close()
     return jsonify({"ok": True})
+
+
+@app.route("/api/auth/change-username", methods=["POST"])
+@limiter.limit("5 per hour")  # 限制修改用户名接口每小时最多5次请求
+def change_username():
+    """修改用户名"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.json or {}
+    new_username = data.get("new_username", "").strip()
+    password = data.get("password", "")
+
+    if not new_username:
+        return jsonify({"error": "请输入新用户名"}), 400
+
+    if not password:
+        return jsonify({"error": "请输入密码确认身份"}), 400
+
+    # 验证用户名格式
+    if not re.match(r'^[a-zA-Z0-9_\u4e00-\u9fa5]{2,20}$', new_username):
+        return jsonify({"error": "用户名只能包含字母、数字、下划线和中文，长度2-20个字符"}), 400
+
+    user_id = session["user_id"]
+    user = get_user_by_username(session.get("username"))
+
+    if not user:
+        return jsonify({"error": "用户不存在"}), 400
+
+    # 验证密码
+    if not check_password_hash(user["password"], password):
+        return jsonify({"error": "密码错误"}), 401
+
+    # 检查用户名是否已存在
+    existing_user = get_user_by_username(new_username)
+    if existing_user and existing_user["id"] != user_id:
+        return jsonify({"error": "该用户名已被使用"}), 400
+
+    # 更新用户名
+    success = update_user_username(user_id, new_username)
+    if not success:
+        return jsonify({"error": "修改用户名失败"}), 500
+
+    # 更新 session 中的用户名
+    session["username"] = new_username
+
+    return jsonify({"ok": True, "username": new_username})
 
 
 # Favorites CRUD (SQLite-backed)
