@@ -170,7 +170,7 @@ jobs:
           fi
 
       - name: Create Release Asset
-        if: steps.tag-info.outputs.is_latest != 'true'
+        if: steps.tag-info.outputs.is_latest == 'true'
         run: |
           IMAGE_NAME="${{ secrets.DOCKERHUB_USERNAME }}/readzen"
           TAG="${{ steps.tag-info.outputs.tag }}"
@@ -207,7 +207,7 @@ jobs:
           fi
 
       - name: Upload Release Asset
-        if: steps.tag-info.outputs.is_latest != 'true'
+        if: steps.tag-info.outputs.is_latest == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag }}
