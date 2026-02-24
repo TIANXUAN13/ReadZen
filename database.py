@@ -179,7 +179,8 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
 
     # 确保管理员账户的 role 字段正确（兼容老版本数据库）
-    cur.execute("UPDATE users SET role = 'admin' WHERE username = 'admin'")
+    # 优先通过现有 admin 角色更新，其次通过用户名 admin 更新
+    cur.execute("UPDATE users SET role = 'admin' WHERE role = 'admin' OR username = 'admin'")
 
     cur.execute("PRAGMA table_info(uploaded_articles)")
     article_columns = [col[1] for col in cur.fetchall()]
