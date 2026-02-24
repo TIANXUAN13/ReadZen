@@ -87,10 +87,10 @@ jobs:
         run: |
           curl -sL https://github.com/docker-slim/docker-slim/releases/download/1.40.11/dist_linux.tar.gz -o dist_linux.tar.gz
           tar -xzf dist_linux.tar.gz
-          sudo mv dist_linux/mint /usr/local/bin/docker-slim
-          sudo mv dist_linux/mint-sensor /usr/local/bin/docker-slim-sensor
-          sudo chmod +x /usr/local/bin/docker-slim /usr/local/bin/docker-slim-sensor
-          docker-slim --version
+          sudo mv dist_linux/mint /usr/local/bin/mint
+          sudo mv dist_linux/mint-sensor /usr/local/bin/mint-sensor
+          sudo chmod +x /usr/local/bin/mint /usr/local/bin/mint-sensor
+          mint --version
 
       - name: Optimize image with docker-slim
         if: github.event.inputs.use_slim == 'true'
@@ -100,7 +100,7 @@ jobs:
           TAG="${{ github.event.inputs.tag || 'latest' }}"
 
           echo "=== Running docker-slim optimization ==="
-          docker-slim build \
+          mint build \
             --target readzen:original \
             --tag ${IMAGE_NAME}:${TAG} \
             --tag readzen:slim \
