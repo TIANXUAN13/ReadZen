@@ -1,12 +1,45 @@
 import sqlite3
 import os
 from werkzeug.security import generate_password_hash, check_password_hash
+from cryptography.fernet import Fernet
 
 # 使用与 server.py 相同的数据目录
 DATA_DIR = os.environ.get("DATA_DIR", "./data")
 # 确保目录存在并设置正确的权限（兼容 bind mount）
 os.makedirs(DATA_DIR, exist_ok=True, mode=0o775)
 DB_PATH = os.path.join(DATA_DIR, "data.db")
+
+# 加密密钥 - 生产环境应使用环境变量
+ENCRYPTION_KEY = os.environ.get("ENCRYPTION_KEY")
+if not ENCRYPTION_KEY:
+    ENCRYPTION_KEY = Fernet.generate_key().decode()
+    print("[WARNING] ENCRYPTION_KEY not set. Generated random key.")
+
+_cipher = None
+def get_cipher():
+    global _cipher
+    if _cipher is None:
+        try:
+            _cipher = Fernet(ENCRYPTION_KEY.encode() if isinstance(ENCRYPTION_KEY, str) else ENCRYPTION_KEY)
+        except Exception:
+            _cipher = Fernet.generate_key()
+            _cipher = Fernet(_cipher)
+    return _cipher
+
+def encrypt_password(password):
+    if not password:
+        return password
+    cipher = get_cipher()
+    return cipher.encrypt(password.encode()).decode()
+
+def decrypt_password(encrypted_password):
+    if not encrypted_password:
+        return encrypted_password
+    try:
+        cipher = get_cipher()
+        return cipher.decrypt(encrypted_password.encode()).decode()
+    except Exception:
+        return encrypted_password
 
 
 def get_conn():
@@ -83,22 +116,9 @@ def init_db():
            type TEXT NOT NULL,
            expires_at TIMESTAMP NOT NULL,
            used INTEGER DEFAULT 0,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-           FOREIGN KEY(user_id) REFERENCES users(id)
-        )"""
-    )
-    
-    cur.execute(
-        """CREATE TABLE IF NOT EXISTS email_verifications (
-           id INTEGER PRIMARY KEY AUTOINCREMENT,
-           user_id INTEGER NOT NULL,
-           email TEXT NOT NULL,
-           code TEXT NOT NULL,
-           expires_at TIMESTAMP NOT NULL,
-           used INTEGER DEFAULT 0,
-           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-           FOREIGN KEY(user_id) REFERENCES users(id)
-        )"""
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY(user_id) REFERENCES users(id)
+         )"""
     )
     
     cur.execute("PRAGMA table_info(users)")
@@ -107,6 +127,8 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN email TEXT")
     if 'email_verified' not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
+    if 'role' not in columns:
+        cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
     
     conn.commit()
     conn.close()
@@ -124,9 +146,10 @@ def create_user(username, password, email=None):
     hashed = generate_password_hash(password)
     conn = get_conn()
     cur = conn.cursor()
+    role = 'admin' if username == 'admin' else 'user'
     cur.execute(
-        "INSERT INTO users (username, password, email) VALUES (?, ?, ?)", 
-        (username, hashed, email)
+        "INSERT INTO users (username, password, email, role) VALUES (?, ?, ?, ?)", 
+        (username, hashed, email, role)
     )
     conn.commit()
     user_id = cur.lastrowid
@@ -313,6 +336,13 @@ def get_smtp_config():
     for key in config_keys:
         value = get_config(key)
         if value is not None:
+            if key == 'smtp_password' and value:
+                try:
+                    decrypted = decrypt_password(value)
+                    if decrypted:
+                        value = decrypted
+                except Exception:
+                    pass
             config[key] = value
     return config
 
@@ -323,7 +353,7 @@ def update_smtp_config(config_dict):
         'smtp_server': 'SMTP服务器地址',
         'smtp_port': 'SMTP端口',
         'smtp_username': 'SMTP用户名',
-        'smtp_password': 'SMTP密码',
+        'smtp_password': 'SMTP密码（加密存储）',
         'smtp_from_name': '发件人名称',
         'smtp_from_email': '发件人邮箱',
         'smtp_use_ssl': '使用SSL',
@@ -331,6 +361,9 @@ def update_smtp_config(config_dict):
         'smtp_enabled': '启用SMTP'
     }
     for key, value in config_dict.items():
+        if key == 'smtp_password' and value:
+            value = encrypt_password(value)
+        set_config(key, value, descriptions.get(key))
         set_config(key, value, descriptions.get(key))
 
 

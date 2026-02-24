@@ -68,13 +68,14 @@ def generate_secret_key():
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
     SECRET_KEY = generate_secret_key()
-    print(f"[WARNING] SECRET_KEY not set in environment. Generated random key: {SECRET_KEY}")
+    print("[WARNING] SECRET_KEY not set in environment. Generated random key for this session.")
     print("[WARNING] Please set SECRET_KEY environment variable for production to maintain session persistence!")
 
 app.secret_key = SECRET_KEY
 
-# 根据环境变量设置调试模式，生产环境默认禁用
-DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1", "yes")
+# 根据环境变量设置调试模式，生产环境默认禁用（验证环境变量值）
+_DEBUG_VALUES = ("true", "1", "yes", "on")
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() in _DEBUG_VALUES
 
 # 设置请求体最大大小为 10MB
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
@@ -96,8 +97,23 @@ limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"  # 使用内存存储速率限制
+    storage_uri="memory://"
 )
+
+def admin_required(f):
+    """管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return jsonify({"error": "unauthorized"}), 401
+        user_id = session.get("user_id")
+        conn = get_conn()
+        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+        conn.close()
+        if not row or row["role"] != "admin":
+            return jsonify({"error": "forbidden"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # 工具函数：从文章内容头部移除标题/作者等元信息（可选，防止上传时把元信息当作正文内容）
 def strip_header_lines(text: str) -> str:
@@ -457,7 +473,10 @@ with app.app_context():
 # Scheme A: Root path serves frontend index.html
 @app.route("/", methods=["GET"])
 def index():
-    return send_from_directory(".", "index.html")
+    index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    if os.path.exists(index_path):
+        return send_from_directory(os.path.dirname(index_path), "index.html")
+    return jsonify({"error": "index.html not found"}), 404
 
 
 # Authentication APIs
@@ -792,6 +811,8 @@ def favorites():
 @app.route("/api/uploaded", methods=["GET"])
 def get_uploaded():
     """获取所有上传的文章"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     articles = get_uploaded_articles()
     return jsonify(articles)
 
@@ -799,6 +820,8 @@ def get_uploaded():
 @app.route("/api/uploaded", methods=["POST"])
 def save_uploaded():
     """保存上传的文章"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     data = request.json or {}
     title = data.get("title")
     author = data.get("author", "佚名")
@@ -837,6 +860,8 @@ def save_uploaded():
 @app.route("/api/uploaded/<int:article_id>", methods=["DELETE"])
 def delete_uploaded(article_id):
     """删除上传的文章"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     delete_uploaded_article(article_id)
     return jsonify({"deleted": article_id})
 
@@ -844,6 +869,8 @@ def delete_uploaded(article_id):
 @app.route("/api/uploaded/clear", methods=["POST"])
 def clear_uploaded():
     """清空上传的文章列表"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     count = 0
     try:
         count = delete_all_uploaded_articles()
@@ -975,7 +1002,11 @@ def daily():
 def admin_users():
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
     users = get_all_users()
     return jsonify(users)
@@ -985,9 +1016,13 @@ def admin_users():
 def admin_delete_user(user_id):
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    current_user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (current_user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
-    if user_id == session["user_id"]:
+    if user_id == current_user_id:
         return jsonify({"error": "cannot delete yourself"}), 400
     delete_user(user_id)
     return jsonify({"deleted": user_id})
@@ -997,7 +1032,11 @@ def admin_delete_user(user_id):
 def admin_get_smtp():
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
     
     config = get_smtp_config()
@@ -1010,7 +1049,11 @@ def admin_get_smtp():
 def admin_update_smtp():
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
     
     data = request.get_json() or {}
@@ -1035,7 +1078,11 @@ def admin_update_smtp():
 def admin_test_smtp():
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
     
     import smtplib
@@ -1089,7 +1136,11 @@ def admin_test_smtp():
 def admin_reset_user_password(user_id):
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    current_user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (current_user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
     
     data = request.get_json() or {}
@@ -1097,8 +1148,9 @@ def admin_reset_user_password(user_id):
     
     if not new_password:
         return jsonify({"error": "密码不能为空"}), 400
-    if len(new_password) < 6:
-        return jsonify({"error": "密码至少6位"}), 400
+    is_valid, error_msg = validate_password(new_password)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
     
     update_user_password(user_id, new_password)
     return jsonify({"success": True, "message": "密码已重置"})
@@ -1144,7 +1196,8 @@ def forgot_password():
     if not user:
         return jsonify({"success": True, "message": "如果该邮箱已注册，您将收到重置邮件"})
     
-    code = ''.join(random.choices(string.digits, k=6))
+    import secrets
+    code = ''.join(secrets.choice('0123456789') for _ in range(6))
     expires_at = datetime.now() + timedelta(minutes=10)
     
     create_password_reset(email, code, expires_at, user["id"])
