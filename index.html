@@ -1020,8 +1020,14 @@
                                             <p :class="['text-sm font-medium', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">用户名</p>
                                             <p :class="['text-lg', backgroundColor === 'dark' ? 'text-white' : 'text-gray-900']">{{ user?.username }}</p>
                                         </div>
+                                        <button
+                                            @click="openChangeUsername"
+                                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                        >
+                                            修改
+                                        </button>
                                     </div>
-                                    
+
                                     <div :class="['flex justify-between items-center p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-gray-50']">
                                         <div>
                                             <p :class="['text-sm font-medium', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">邮箱地址</p>
@@ -1596,12 +1602,58 @@
                         {{ changePasswordError }}
                     </div>
                     
-                    <button 
+                    <button
                         @click="doChangePassword"
                         :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
                         :disabled="changePasswordLoading"
                     >
                         {{ changePasswordLoading ? '修改中...' : '确认修改' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- 修改用户名弹窗 -->
+            <div v-if="showChangeUsername" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showChangeUsername = false">
+                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                            修改用户名
+                        </h3>
+                        <button @click="showChangeUsername = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <p :class="['text-xs mb-3', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                        用户名只能包含字母、数字、下划线和中文，长度2-20个字符
+                    </p>
+
+                    <input
+                        v-model="changeUsernameForm.new_username"
+                        type="text"
+                        placeholder="新用户名"
+                        :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+                    <input
+                        v-model="changeUsernameForm.password"
+                        type="password"
+                        placeholder="输入密码确认身份"
+                        @keyup.enter="doChangeUsername"
+                        :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+
+                    <div v-if="changeUsernameError" :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-red-400' : 'text-red-500']">
+                        {{ changeUsernameError }}
+                    </div>
+
+                    <button
+                        @click="doChangeUsername"
+                        :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                        :disabled="changeUsernameLoading"
+                    >
+                        {{ changeUsernameLoading ? '修改中...' : '确认修改' }}
                     </button>
                 </div>
             </div>
@@ -3188,6 +3240,66 @@
                     }
                 };
 
+                // 修改用户名相关
+                const showChangeUsername = ref(false);
+                const changeUsernameForm = reactive({
+                    new_username: '',
+                    password: ''
+                });
+                const changeUsernameError = ref('');
+                const changeUsernameLoading = ref(false);
+
+                const openChangeUsername = () => {
+                    changeUsernameForm.new_username = '';
+                    changeUsernameForm.password = '';
+                    changeUsernameError.value = '';
+                    showChangeUsername.value = true;
+                };
+
+                const doChangeUsername = async () => {
+                    changeUsernameError.value = '';
+
+                    if (!changeUsernameForm.new_username || !changeUsernameForm.password) {
+                        changeUsernameError.value = '请填写完整信息';
+                        return;
+                    }
+
+                    if (changeUsernameForm.new_username.length < 2 || changeUsernameForm.new_username.length > 20) {
+                        changeUsernameError.value = '用户名长度需要2-20个字符';
+                        return;
+                    }
+
+                    changeUsernameLoading.value = true;
+
+                    try {
+                        const res = await fetch('/api/auth/change-username', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                new_username: changeUsernameForm.new_username,
+                                password: changeUsernameForm.password
+                            }),
+                            credentials: 'include'
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            showChangeUsername.value = false;
+                            // 更新本地用户信息
+                            user.value = { ...user.value, username: data.username };
+                            showToast('用户名修改成功', 'success');
+                        } else {
+                            const err = await res.json();
+                            changeUsernameError.value = err.error || '修改失败';
+                        }
+                    } catch (e) {
+                        console.error('修改用户名失败:', e);
+                        changeUsernameError.value = '修改失败，请稍后重试';
+                    } finally {
+                        changeUsernameLoading.value = false;
+                    }
+                };
+
                 // 修改邮箱相关
                 const showChangeEmail = ref(false);
                 const changeEmailStep2 = ref(false);
@@ -3426,6 +3538,12 @@
                         changePasswordLoading,
                         openChangePassword,
                         doChangePassword,
+                        showChangeUsername,
+                        changeUsernameForm,
+                        changeUsernameError,
+                        changeUsernameLoading,
+                        openChangeUsername,
+                        doChangeUsername,
                         showChangeEmail,
                         changeEmailStep2,
                         changeEmailForm,

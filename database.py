@@ -177,7 +177,10 @@ def init_db():
         cur.execute("ALTER TABLE users ADD COLUMN email_verified INTEGER DEFAULT 0")
     if 'role' not in columns:
         cur.execute("ALTER TABLE users ADD COLUMN role TEXT DEFAULT 'user'")
-    
+
+    # 确保管理员账户的 role 字段正确（兼容老版本数据库）
+    cur.execute("UPDATE users SET role = 'admin' WHERE username = 'admin'")
+
     cur.execute("PRAGMA table_info(uploaded_articles)")
     article_columns = [col[1] for col in cur.fetchall()]
     if 'user_id' not in article_columns:
@@ -498,6 +501,22 @@ def update_user_password(user_id, new_password):
     )
     conn.commit()
     conn.close()
+
+
+def update_user_username(user_id, new_username):
+    """更新用户名"""
+    conn = get_conn()
+    try:
+        conn.execute(
+            "UPDATE users SET username = ? WHERE id = ?", (new_username, user_id)
+        )
+        conn.commit()
+        return True
+    except sqlite3.IntegrityError:
+        # 用户名已存在
+        return False
+    finally:
+        conn.close()
 
 
 def create_password_reset(email, code, expires_at, user_id=None):
