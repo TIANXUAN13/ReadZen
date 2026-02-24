@@ -3424,9 +3424,10 @@
                  watch(() => user.value, (newUser) => {
                      if (newUser) {
                          loadFavorites();
-                         // 如果当前就在用户管理页面，登录后自动加载列表
+                         // 如果当前就在用户管理页面，登录后自动加载列表和SMTP配置
                          if (activeTab.value === 'admin') {
                              loadAllUsers();
+                             loadSmtpConfig();
                          }
                      } else {
                          favoriteArticles.value = [];
