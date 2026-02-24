@@ -29,7 +29,10 @@ from database import (
     add_favorite,
     remove_favorite,
     get_all_users,
+    get_users_paginated,
     delete_user,
+    delete_users,
+    get_user_username,
     get_uploaded_articles,
     save_uploaded_article,
     delete_uploaded_article,
@@ -1008,8 +1011,51 @@ def admin_users():
     conn.close()
     if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
-    users = get_all_users()
-    return jsonify(users)
+
+    # 支持分页参数
+    try:
+        page = int(request.args.get("page", 1))
+        per_page = min(int(request.args.get("per_page", 10)), 100)  # 最多100
+    except ValueError:
+        page = 1
+        per_page = 10
+
+    if page < 1:
+        page = 1
+    if per_page < 1:
+        per_page = 10
+
+    result = get_users_paginated(page, per_page)
+    return jsonify(result)
+
+
+@app.route("/api/admin/users/batch", methods=["DELETE"])
+def admin_batch_delete_users():
+    """批量删除用户"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    if session.get("username") != "admin":
+        return jsonify({"error": "forbidden"}), 403
+
+    data = request.get_json() or {}
+    user_ids = data.get("user_ids", [])
+
+    if not user_ids or not isinstance(user_ids, list):
+        return jsonify({"error": "user_ids is required and must be a list"}), 400
+
+    # 不能删除自己
+    current_user_id = session["user_id"]
+    if current_user_id in user_ids:
+        return jsonify({"error": "cannot delete yourself"}), 400
+
+    # 检查是否尝试删除 admin 用户
+    for uid in user_ids:
+        username = get_user_username(uid)
+        if username == "admin":
+            return jsonify({"error": "cannot delete admin user"}), 400
+
+    deleted_count = delete_users(user_ids)
+    return jsonify({"deleted_count": deleted_count, "deleted_ids": user_ids})
 
 
 @app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])

@@ -219,6 +219,44 @@ def get_all_users():
     return [dict(r) for r in rows]
 
 
+def get_users_paginated(page=1, per_page=10):
+    """获取分页用户列表"""
+    conn = get_conn()
+    offset = (page - 1) * per_page
+
+    # 获取总数
+    total_row = conn.execute("SELECT COUNT(*) as count FROM users").fetchone()
+    total = total_row["count"] if total_row else 0
+
+    # 获取分页数据
+    rows = conn.execute(
+        "SELECT id, username, created_at FROM users ORDER BY created_at DESC LIMIT ? OFFSET ?",
+        (per_page, offset)
+    ).fetchall()
+    conn.close()
+
+    return {
+        "users": [dict(r) for r in rows],
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 0
+    }
+
+
+def delete_users(user_ids):
+    """批量删除用户"""
+    conn = get_conn()
+    placeholders = ",".join("?" * len(user_ids))
+    # 先删除用户的收藏
+    conn.execute(f"DELETE FROM favorites WHERE user_id IN ({placeholders})", user_ids)
+    # 删除用户
+    conn.execute(f"DELETE FROM users WHERE id IN ({placeholders})", user_ids)
+    conn.commit()
+    conn.close()
+    return len(user_ids)
+
+
 def get_user_by_id(user_id):
     conn = get_conn()
     row = conn.execute(
