@@ -3,6 +3,10 @@ import re
 import sqlite3
 import requests
 import shutil  # 新增：用于文件复制
+import urllib3
+
+# 禁用 SSL 证书警告（由各文章源独立控制是否验证证书）
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 import random
 import string
 import base64
@@ -1120,20 +1124,21 @@ def add_source():
     url = data.get("url", "").strip()
     api_validation = data.get("api_validation", "").strip() or None
     polling_algorithm = data.get("polling_algorithm", "sequential")
-    
+    verify_ssl = data.get("verify_ssl", 1)
+
     if not name or not url:
         return jsonify({"error": "name和url是必填项"}), 400
-    
+
     if polling_algorithm not in ("sequential", "random"):
         polling_algorithm = "sequential"
-    
+
     # 验证API是否可访问
     if url:
         try:
-            resp = requests.get(url, timeout=10, verify=False)
+            resp = requests.get(url, timeout=10, verify=bool(verify_ssl))
             if not resp.ok:
                 return jsonify({"error": f"API地址不可访问: {resp.status_code}"}), 400
-            
+
             if api_validation:
                 try:
                     data_resp = resp.json()
@@ -1145,10 +1150,12 @@ def add_source():
                     return jsonify({"error": "API验证失败: 返回的不是有效的JSON"}), 400
         except requests.exceptions.Timeout:
             return jsonify({"error": "API地址超时"}), 400
+        except requests.exceptions.SSLError:
+            return jsonify({"error": "SSL证书验证失败，可勾选「忽略证书告警」后重试"}), 400
         except Exception as e:
             return jsonify({"error": f"API地址无效: {str(e)}"}), 400
-    
-    source_id = add_article_source(name, url, api_validation, polling_algorithm, 1)
+
+    source_id = add_article_source(name, url, api_validation, polling_algorithm, 1, verify_ssl)
     return jsonify({"id": source_id, "message": "文章源添加成功"})
 
 
@@ -1161,17 +1168,18 @@ def update_source(source_id):
     api_validation = data.get("api_validation")
     polling_algorithm = data.get("polling_algorithm")
     enabled = data.get("enabled")
-    
+    verify_ssl = data.get("verify_ssl")
+
     if polling_algorithm and polling_algorithm not in ("sequential", "random"):
         return jsonify({"error": "polling_algorithm必须是sequential或random"}), 400
-    
+
     if enabled is not None and not isinstance(enabled, bool):
         enabled = bool(enabled)
-    
-    success = update_article_source(source_id, name, url, api_validation, polling_algorithm, enabled)
+
+    success = update_article_source(source_id, name, url, api_validation, polling_algorithm, enabled, verify_ssl)
     if not success:
         return jsonify({"error": "文章源不存在"}), 404
-    
+
     return jsonify({"message": "文章源更新成功"})
 
 
@@ -1214,7 +1222,8 @@ def fetch_article_from_source(source):
         return None, "invalid"
     
     try:
-        resp = requests.get(url, timeout=10, verify=False)
+        verify_ssl = bool(source.get("verify_ssl", 1))
+        resp = requests.get(url, timeout=10, verify=verify_ssl)
         if not resp.ok:
             return None, "invalid"
         

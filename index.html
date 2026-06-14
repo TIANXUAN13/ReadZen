@@ -1719,6 +1719,7 @@
                                             <th class="px-4 py-3">名称</th>
                                             <th class="px-4 py-3">URL / 验证字段</th>
                                             <th class="px-4 py-3">轮询算法</th>
+                                            <th class="px-4 py-3">忽略证书</th>
                                             <th class="px-4 py-3">状态</th>
                                             <th class="px-4 py-3">操作</th>
                                         </tr>
@@ -1737,6 +1738,10 @@
                                                     <option value="sequential">顺序</option>
                                                     <option value="random">随机</option>
                                                 </select>
+                                            </td>
+                                            <td class="px-4 py-3 align-top text-center">
+                                                <span v-if="!s.verify_ssl" class="text-yellow-500 font-bold">✓</span>
+                                                <span v-else class="opacity-30">✗</span>
                                             </td>
                                             <td class="px-4 py-3 align-top">
                                                 <label class="inline-flex items-center">
@@ -1766,13 +1771,14 @@
                                     <option value="sequential">顺序</option>
                                     <option value="random">随机</option>
                                 </select>
-                                <div class="flex items-center gap-2">
+                                <div class="flex items-center gap-4">
                                     <label class="inline-flex items-center"><input type="checkbox" v-model="newSource.enabled" class="form-checkbox" /> <span class="ml-2">启用</span></label>
+                                    <label class="inline-flex items-center cursor-pointer" title="勾选后忽略 HTTPS 证书验证"><input type="checkbox" :checked="!newSource.verify_ssl" @change="newSource.verify_ssl = newSource.verify_ssl ? 0 : 1" class="form-checkbox" /> <span class="ml-2">忽略证书告警</span></label>
                                 </div>
                             </div>
                             <div class="mt-4 flex gap-2">
                                 <button @click="createSource" class="px-4 py-2 rounded bg-blue-500 text-white">添加</button>
-                                <button @click="() => { newSource.name=''; newSource.url=''; newSource.api_validation=''; newSource.polling_algorithm='sequential'; newSource.enabled=true }" class="px-4 py-2 rounded border">重置</button>
+                                <button @click="() => { newSource.name=''; newSource.url=''; newSource.api_validation=''; newSource.polling_algorithm='sequential'; newSource.enabled=true; newSource.verify_ssl=1 }" class="px-4 py-2 rounded border">重置</button>
                             </div>
                         </div>
                     </div>
@@ -2982,7 +2988,7 @@
                 // 文章来源管理
                 const sources = ref([]);
                 const loadingSources = ref(false);
-                const newSource = reactive({ name: '', url: '', api_validation: '', polling_algorithm: 'sequential', enabled: true });
+                const newSource = reactive({ name: '', url: '', api_validation: '', polling_algorithm: 'sequential', enabled: true, verify_ssl: 1 });
                 const globalAlgorithm = ref('sequential');
 
                 const loadSources = async () => {
@@ -3020,7 +3026,7 @@
                         });
                         if (res.ok) {
                             showToast('文章来源添加成功', 'success');
-                            newSource.name = ''; newSource.url = ''; newSource.api_validation = ''; newSource.polling_algorithm = 'sequential'; newSource.enabled = true;
+                            newSource.name = ''; newSource.url = ''; newSource.api_validation = ''; newSource.polling_algorithm = 'sequential'; newSource.enabled = true; newSource.verify_ssl = 1;
                             await loadSources();
                         } else {
                             const err = await res.json();
@@ -3056,6 +3062,7 @@
                     newSource.api_validation = s.api_validation || '';
                     newSource.polling_algorithm = s.polling_algorithm || 'sequential';
                     newSource.enabled = !!s.enabled;
+                    newSource.verify_ssl = s.verify_ssl !== undefined ? s.verify_ssl : 1;
                     // 保存编辑时使用 updateSource
                     newSource._editingId = s.id;
                 };
@@ -3063,7 +3070,7 @@
                 const updateSource = async (s) => {
                     try {
                         const id = s.id;
-                        const body = { name: s.name, url: s.url, api_validation: s.api_validation, polling_algorithm: s.polling_algorithm, enabled: !!s.enabled };
+                        const body = { name: s.name, url: s.url, api_validation: s.api_validation, polling_algorithm: s.polling_algorithm, enabled: !!s.enabled, verify_ssl: s.verify_ssl };
                         const res = await fetch(`/api/sources/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
                         if (res.ok) {
                             showToast('更新成功', 'success');

@@ -196,11 +196,18 @@ def init_db():
            api_validation TEXT,
            polling_algorithm TEXT DEFAULT 'sequential',
            enabled INTEGER DEFAULT 1,
+           verify_ssl INTEGER DEFAULT 1,
            order_index INTEGER DEFAULT 0,
            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )"""
     )
+
+    # 兼容已有表：添加 verify_ssl 列（如果不存在）
+    try:
+        cur.execute("ALTER TABLE article_sources ADD COLUMN verify_ssl INTEGER DEFAULT 1")
+    except sqlite3.OperationalError:
+        pass  # 列已存在
     
     # 添加默认源（如果还不存在）
     cur.execute("SELECT COUNT(*) FROM article_sources WHERE url = ?", ("https://api.qhsou.com/api/one.php",))
@@ -679,7 +686,7 @@ def get_user_email_verified(user_id):
 
 
 # ---------------- Article sources management ----------------
-def add_article_source(name, url, api_validation=None, polling_algorithm="sequential", enabled=1, order_index=None):
+def add_article_source(name, url, api_validation=None, polling_algorithm="sequential", enabled=1, verify_ssl=1, order_index=None):
     """添加文章源，返回新插入的 id"""
     conn = get_conn()
     cur = conn.cursor()
@@ -690,9 +697,9 @@ def add_article_source(name, url, api_validation=None, polling_algorithm="sequen
         order_index = max_idx + 1
 
     cur.execute(
-        """INSERT INTO article_sources (name, url, api_validation, polling_algorithm, enabled, order_index)
-           VALUES (?, ?, ?, ?, ?, ?)""",
-        (name, url, api_validation, polling_algorithm, int(enabled), order_index)
+        """INSERT INTO article_sources (name, url, api_validation, polling_algorithm, enabled, verify_ssl, order_index)
+           VALUES (?, ?, ?, ?, ?, ?, ?)""",
+        (name, url, api_validation, polling_algorithm, int(enabled), int(verify_ssl), order_index)
     )
     conn.commit()
     sid = cur.lastrowid
@@ -717,7 +724,7 @@ def get_article_source_by_id(source_id):
     return dict(row) if row else None
 
 
-def update_article_source(source_id, name=None, url=None, api_validation=None, polling_algorithm=None, enabled=None, order_index=None):
+def update_article_source(source_id, name=None, url=None, api_validation=None, polling_algorithm=None, enabled=None, verify_ssl=None, order_index=None):
     conn = get_conn()
     cur = conn.cursor()
     # 确认存在
@@ -743,6 +750,9 @@ def update_article_source(source_id, name=None, url=None, api_validation=None, p
     if enabled is not None:
         fields.append("enabled = ?")
         params.append(int(enabled))
+    if verify_ssl is not None:
+        fields.append("verify_ssl = ?")
+        params.append(int(verify_ssl))
     if order_index is not None:
         fields.append("order_index = ?")
         params.append(int(order_index))
