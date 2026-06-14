@@ -2431,7 +2431,7 @@
                         .replace(/&gt;/g, '>')
                         .replace(/&amp;/g, '&');
 
-                    // 按空行拆块（强边界），块内按单换行拆行（API 自然段）
+                    // 按空行拆块（强边界），块内每行作为一个候选段
                     const blocks = text
                         .split(/\n\s*\n/)
                         .map(b => b.trim())
@@ -2445,13 +2445,13 @@
 
                     if (rawParas.length === 0) return rawContent;
 
-                    // 合并极短碎片：如果一行 < 30 字且不以句号/感叹号/问号结尾，
-                    // 则与下一行合并（拒绝"一句一段"的过度拆分）
+                    // 合并过短的段：如果当前行 < 80 字且不以句末标点结尾，
+                    // 则与下一行合并（避免"一句一段"的碎片化）
                     const paragraphs = [];
                     let i = 0;
                     while (i < rawParas.length) {
                         let cur = rawParas[i];
-                        while (i + 1 < rawParas.length && cur.length < 30 && !/[。！？」』]$/.test(cur)) {
+                        while (i + 1 < rawParas.length && cur.length < 80 && !/[。！？」』"”]$/.test(cur)) {
                             i++;
                             cur += rawParas[i];
                         }
