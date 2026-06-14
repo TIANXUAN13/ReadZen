@@ -34,6 +34,15 @@
         body {
             font-family: 'Noto Serif SC', serif;
         }
+        /* 段落间距收紧（覆盖 prose 默认的较大 margin） */
+        .paragraph-compact p {
+            margin-top: 0.5em;
+            margin-bottom: 0.5em;
+        }
+        .paragraph-compact p:first-child {
+            margin-top: 0;
+        }
+
         /* 自定义滚动条 */
         ::-webkit-scrollbar {
             width: 6px;
@@ -840,7 +849,7 @@
                             </div>
 
                              <!-- 正文 -->
-                             <div :class="['prose prose-lg text-justify prose-p:indent-8 prose-p:leading-loose mx-auto font-serif-reading', bgColors[backgroundColor].prose]" v-html="article.content" :style="{ fontSize: fontSize + 'px' }">
+                             <div class="prose prose-lg text-justify prose-p:indent-8 prose-p:leading-loose mx-auto font-serif-reading paragraph-compact" :class="bgColors[backgroundColor].prose" v-html="article.content" :style="{ fontSize: fontSize + 'px' }">
                              </div>
                             
                             <!-- 底部结束符 -->
@@ -2404,7 +2413,6 @@
 
                     // 如果已经是带 <p> 标签的 HTML，清理多余 <br> 后返回
                     if (/<p\b[^>]*>/i.test(rawContent)) {
-                        // 中文文章不需要 <br>，段落内换行由 CSS 处理
                         return rawContent.replace(/<br\s*\/?>/gi, '');
                     }
 
@@ -2417,29 +2425,11 @@
                         .replace(/&gt;/g, '>')
                         .replace(/&amp;/g, '&');
 
-                    // 优先按空行分段；若只有一段则降级为按单换行分段
-                    let paragraphs = text
+                    // 按空行分段；单换行在中文里不是段落边界，直接忽略
+                    const paragraphs = text
                         .split(/\n\s*\n/)
-                        .map(p => p.trim())
+                        .map(p => p.trim().replace(/\n/g, ''))  // 单换行不产生 <br>
                         .filter(p => p.length > 0);
-
-                    if (paragraphs.length <= 1) {
-                        paragraphs = text
-                            .split('\n')
-                            .map(p => p.trim())
-                            .filter(p => p.length > 0);
-                    }
-
-                    // 仍为超长单段（>1000字）就按句子拆
-                    if (paragraphs.length === 1 && paragraphs[0].length > 1000) {
-                        const sentences = paragraphs[0]
-                            .replace(/([。！？；])\s*/g, '$1\n')
-                            .split('\n')
-                            .filter(s => s.trim().length > 0);
-                        if (sentences.length > 1) {
-                            paragraphs = sentences.map(s => s.trim());
-                        }
-                    }
 
                     if (paragraphs.length === 0) return rawContent;
 
