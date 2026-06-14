@@ -2425,11 +2425,33 @@
                         .replace(/&gt;/g, '>')
                         .replace(/&amp;/g, '&');
 
-                    // 按空行分段；单换行在中文里不是段落边界，直接忽略
-                    const paragraphs = text
+                    // 按空行拆块（强边界），块内按单换行拆行（API 自然段）
+                    const blocks = text
                         .split(/\n\s*\n/)
-                        .map(p => p.trim().replace(/\n/g, ''))  // 单换行不产生 <br>
-                        .filter(p => p.length > 0);
+                        .map(b => b.trim())
+                        .filter(b => b.length > 0);
+
+                    const rawParas = [];
+                    for (const block of blocks) {
+                        const lines = block.split('\n').map(s => s.trim()).filter(s => s.length > 0);
+                        rawParas.push(...lines);
+                    }
+
+                    if (rawParas.length === 0) return rawContent;
+
+                    // 合并极短碎片：如果一行 < 30 字且不以句号/感叹号/问号结尾，
+                    // 则与下一行合并（拒绝"一句一段"的过度拆分）
+                    const paragraphs = [];
+                    let i = 0;
+                    while (i < rawParas.length) {
+                        let cur = rawParas[i];
+                        while (i + 1 < rawParas.length && cur.length < 30 && !/[。！？」』]$/.test(cur)) {
+                            i++;
+                            cur += rawParas[i];
+                        }
+                        paragraphs.push(cur);
+                        i++;
+                    }
 
                     if (paragraphs.length === 0) return rawContent;
 
