@@ -21,6 +21,7 @@ from captcha.image import ImageCaptcha  # 验证码图片生成
 # 导入数据库函数
 from database import (
     init_db,
+    get_conn,
     get_user_by_username,
     create_user,
     verify_user,
@@ -28,13 +29,44 @@ from database import (
     add_favorite,
     remove_favorite,
     get_all_users,
+    get_users_paginated,
     delete_user,
+    delete_users,
+    get_user_username,
     get_uploaded_articles,
+    get_uploaded_article_by_id,
     save_uploaded_article,
     delete_uploaded_article,
     delete_all_uploaded_articles,
     DATA_DIR,
     DB_PATH,
+    get_config,
+    set_config,
+    get_smtp_config,
+    update_smtp_config,
+    get_user_by_email,
+    update_user_email,
+    update_user_password,
+    update_user_username,
+    create_password_reset,
+    get_valid_password_reset,
+    mark_password_reset_used,
+    create_email_verification,
+    get_valid_email_verification,
+    mark_email_verification_used,
+    verify_user_email,
+    update_user_email_with_verification,
+    get_user_email_verified,
+    add_article_source,
+    get_article_sources,
+    get_article_source_by_id,
+    update_article_source,
+    delete_article_source,
+    toggle_article_source,
+    get_global_polling_algorithm,
+    set_global_polling_algorithm,
+    update_user_email_with_verification,
+    get_user_email_verified,
 )
 
 PRELOADED_DB_PATH = "/app/preloaded_data/data.db"
@@ -51,13 +83,14 @@ def generate_secret_key():
 SECRET_KEY = os.environ.get("SECRET_KEY")
 if not SECRET_KEY:
     SECRET_KEY = generate_secret_key()
-    print(f"[WARNING] SECRET_KEY not set in environment. Generated random key: {SECRET_KEY}")
+    print("[WARNING] SECRET_KEY not set in environment. Generated random key for this session.")
     print("[WARNING] Please set SECRET_KEY environment variable for production to maintain session persistence!")
 
 app.secret_key = SECRET_KEY
 
-# 根据环境变量设置调试模式，生产环境默认禁用
-DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1", "yes")
+# 根据环境变量设置调试模式，生产环境默认禁用（验证环境变量值）
+_DEBUG_VALUES = ("true", "1", "yes", "on")
+DEBUG_MODE = os.environ.get("FLASK_DEBUG", "false").lower() in _DEBUG_VALUES
 
 # 设置请求体最大大小为 10MB
 app.config['MAX_CONTENT_LENGTH'] = 10 * 1024 * 1024  # 10MB
@@ -79,8 +112,23 @@ limiter = Limiter(
     app=app,
     key_func=get_remote_address,
     default_limits=["200 per day", "50 per hour"],
-    storage_uri="memory://"  # 使用内存存储速率限制
+    storage_uri="memory://"
 )
+
+def admin_required(f):
+    """管理员权限装饰器"""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if "user_id" not in session:
+            return jsonify({"error": "unauthorized"}), 401
+        user_id = session.get("user_id")
+        conn = get_conn()
+        row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+        conn.close()
+        if not row or row["role"] != "admin":
+            return jsonify({"error": "forbidden"}), 403
+        return f(*args, **kwargs)
+    return decorated_function
 
 # 工具函数：从文章内容头部移除标题/作者等元信息（可选，防止上传时把元信息当作正文内容）
 def strip_header_lines(text: str) -> str:
@@ -128,6 +176,137 @@ def validate_password(password: str) -> tuple[bool, str]:
 
     return True, ""
 
+def send_html_email(to_email, subject, html_body):
+    """发送HTML邮件"""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    config = get_smtp_config()
+    
+    if not config.get('smtp_server'):
+        raise Exception("SMTP未配置")
+    
+    smtp_server = config.get("smtp_server", "")
+    smtp_port = int(config.get("smtp_port", 587))
+    smtp_username = config.get("smtp_username", "")
+    smtp_password = config.get("smtp_password", "")
+    from_name = config.get("smtp_from_name", "ReadZen")
+    from_email = config.get("smtp_from_email", smtp_username)
+    use_ssl = config.get("smtp_use_ssl", "false").lower() == "true"
+    use_tls = config.get("smtp_use_tls", "true").lower() == "true"
+    
+    msg = MIMEMultipart("alternative")
+    msg["From"] = f"{from_name} <{from_email}>"
+    msg["To"] = to_email
+    msg["Subject"] = subject
+    
+    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    
+    if use_ssl:
+        server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+    else:
+        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+        if use_tls:
+            server.starttls()
+    
+    server.login(smtp_username, smtp_password)
+    server.sendmail(from_email, to_email, msg.as_string())
+    server.quit()
+
+
+def get_email_template(title, greeting, content, code=None, code_label="验证码", expiry_hours=None):
+    """生成美观的HTML邮件模板"""
+    code_block = ""
+    if code:
+        expiry_text = f"有效期 {expiry_hours} 小时" if expiry_hours else ""
+        code_block = f"""
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 24px; margin: 24px 0; text-align: center;">
+            <div style="color: rgba(255,255,255,0.9); font-size: 14px; margin-bottom: 8px;">{code_label}</div>
+            <div style="color: #fff; font-size: 36px; font-weight: bold; letter-spacing: 8px; font-family: 'Courier New', monospace;">{code}</div>
+            <div style="color: rgba(255,255,255,0.8); font-size: 12px; margin-top: 12px;">{expiry_text}</div>
+        </div>
+        """
+    
+    html = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 500px; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 32px; text-align: center;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 600;">ReadZen</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 32px;">
+                            <h2 style="color: #333333; margin: 0 0 16px 0; font-size: 20px; font-weight: 600;">{title}</h2>
+                            <p style="color: #666666; margin: 0 0 24px 0; font-size: 15px; line-height: 1.6;">
+                                {greeting}
+                            </p>
+                            {code_block}
+                            <div style="background-color: #f8f9fa; border-radius: 8px; padding: 16px; margin: 24px 0;">
+                                <p style="color: #666666; margin: 0; font-size: 13px; line-height: 1.6;">
+                                    {content}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 24px; text-align: center; border-top: 1px solid #eeeeee;">
+                            <p style="color: #999999; margin: 0 0 8px 0; font-size: 12px;">
+                                如果您没有进行此操作，请忽略此邮件。
+                            </p>
+                            <p style="color: #999999; margin: 0; font-size: 12px;">
+                                © 2026 ReadZen. All rights reserved.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
+"""
+    return html
+
+
+def send_verification_email(to_email, code, username, email_type="register"):
+    """发送邮箱验证邮件
+    
+    Args:
+        to_email: 收件人邮箱
+        code: 验证码
+        username: 用户名
+        email_type: 邮件类型，register-注册验证，change_email-修改邮箱验证
+    """
+    if email_type == "change_email":
+        subject = "【ReadZen】邮箱修改验证"
+        title = "验证新邮箱"
+        greeting = f"您好，{username}！您正在修改邮箱地址。"
+        content = "请使用上面的验证码完成邮箱修改。验证码只能使用一次，请勿泄露给他人。"
+    else:
+        subject = "【ReadZen】邮箱验证"
+        title = "验证您的邮箱"
+        greeting = f"您好，{username}！感谢您注册 ReadZen。"
+        content = "请使用上面的验证码完成邮箱验证。验证码只能使用一次，请勿泄露给他人。"
+    
+    html_body = get_email_template(title, greeting, content, code, "邮箱验证码", 24)
+    send_html_email(to_email, subject, html_body)
+
 # 验证码图片生成器
 captcha_generator = ImageCaptcha(width=160, height=60)
 
@@ -137,20 +316,34 @@ def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: st
     from PIL import Image, ImageDraw, ImageFont
     import random
     
-    # 图片尺寸：匹配前端容器尺寸（包含边框）
-    # 容器：152px × 48px，减去边框4px得到内部区域
-    width, height = 152, 48
+    width, height = 176, 56
     img = Image.new('RGB', (width, height), bg_color)
     draw = ImageDraw.Draw(img)
     
-    # 字体设置
-    try:
-        font = ImageFont.truetype("arial.ttf", 24)
-    except:
+    font_size = 32
+    font = None
+    font_paths = [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "C:\\Windows\\Fonts\\arial.ttf",
+        "arial.ttf",
+    ]
+    for font_path in font_paths:
         try:
-            font = ImageFont.load_default()
+            font = ImageFont.truetype(font_path, font_size)
+            break
         except:
-            font = None
+            continue
+    
+    if font is None:
+        try:
+            font = ImageFont.load_default(size=font_size)
+        except:
+            try:
+                font = ImageFont.load_default()
+            except:
+                font = None
     
     # 添加干扰线
     for _ in range(2):
@@ -169,8 +362,7 @@ def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: st
     # 动态计算字符布局，确保完全填充
     n_chars = len(code)
     
-    # 使用极小的边距，让字符充分利用空间
-    margin = 8
+    margin = 10
     available_width = width - 2 * margin
     char_width = available_width // n_chars if n_chars > 0 else available_width
     
@@ -217,20 +409,17 @@ def generate_custom_captcha(code: str, bg_color: str = '#fdfbf7', text_color: st
 @app.route("/api/captcha", methods=["GET"])
 def get_captcha():
     """生成并返回验证码图片"""
-    # 生成随机验证码
-    captcha_code = "".join(random.choices(string.ascii_uppercase + string.digits, k=4))
-    # 存储到会话中
+    import secrets
+    captcha_code = ''.join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(4))
     session["captcha"] = captcha_code
     session["captcha_time"] = datetime.now().timestamp()
 
-    # 生成自定义验证码图片（使用主题色）
     image_data = generate_custom_captcha(captcha_code, bg_color='#fdfbf7', text_color='#374151')
 
-    # 返回base64编码的图片
     return jsonify(
         {
             "captcha_image": base64.b64encode(image_data).decode("utf-8"),
-            "expires_in": 300,  # 5分钟有效期
+            "expires_in": 300,
         }
     )
 
@@ -290,7 +479,10 @@ def initialize_application():
             test_conn = sqlite3.connect(DB_PATH)
             test_conn.execute("SELECT name FROM sqlite_master WHERE type='table'")
             test_conn.close()
-            print(f"[INFO] Valid database found at {DB_PATH}, skipping initialization.")
+            print(f"[INFO] Valid database found at {DB_PATH}")
+            # 数据库存在，但仍需调用 init_db 确保新表被创建（迁移）
+            init_db()
+            print("[INFO] Database migration check completed.")
         except sqlite3.Error as e:
             # 数据库损坏或不可读，需要重新创建
             print(f"[WARNING] Database at {DB_PATH} is corrupted or unreadable: {e}")
@@ -310,6 +502,8 @@ def initialize_application():
             try:
                 os.chmod(DB_PATH, 0o666)
                 print(f"[INFO] Attempted to fix permissions on {DB_PATH}")
+                # 修复权限后也执行迁移检查
+                init_db()
             except Exception as perm_error:
                 print(f"[WARNING] Failed to fix permissions: {perm_error}")
 
@@ -340,17 +534,9 @@ def initialize_application():
 def create_admin_user():
     """启动时检查并创建 admin 用户"""
     try:
-        # 此时数据库一定存在了，建立连接检查
-        # 注意：这里需要临时修改 database.py 里的 DB_PATH 或者确保 database.py 引用的是正确的全局路径
-        # 由于 database.py 里的路径可能是硬编码或导入时确定的，建议在 database.py 里也做相应调整
-        # 这里假设 database.py 会读取环境变量或者我们不需要修改它（如果它每次都读文件）
-        # 为了保险，我们重新初始化一下 database 模块里的路径（如果那是动态的）
-        # 但通常 init_db() 里的逻辑依赖 database.py 的实现。
-        # 简单调用 get_user_by_username 即可，如果报错说明表结构不对，再次 init_db
         try:
             admin_user = get_user_by_username("admin")
         except sqlite3.OperationalError:
-            # 如果表不存在（比如复制的文件损坏），重新建表
             init_db()
             admin_user = get_user_by_username("admin")
 
@@ -358,7 +544,7 @@ def create_admin_user():
             admin_password = os.environ.get("ADMIN_PASSWORD", "admin123")
             if admin_password:
                 create_user("admin", admin_password)
-                print(f"[INFO] Admin user created with password: {admin_password}")
+                print("[INFO] Admin user created with default password")
     except Exception as e:
         print(f"[WARNING] Failed to check/create admin user: {e}")
 
@@ -373,7 +559,10 @@ with app.app_context():
 # Scheme A: Root path serves frontend index.html
 @app.route("/", methods=["GET"])
 def index():
-    return send_from_directory(".", "index.html")
+    index_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "index.html")
+    if os.path.exists(index_path):
+        return send_from_directory(os.path.dirname(index_path), "index.html")
+    return jsonify({"error": "index.html not found"}), 404
 
 
 # Authentication APIs
@@ -384,11 +573,12 @@ def register():
     username = data.get("username")
     password = data.get("password")
     confirm_password = data.get("confirm_password", data.get("password_confirm", ""))
+    email = data.get("email", "").strip().lower()
     captcha = data.get("captcha", "").strip().upper()
 
-    # 用户名和密码必填验证
-    if not username or not password:
-        return jsonify({"error": "username和password是必填项"}), 400
+    # 用户名、密码和邮箱必填验证
+    if not username or not password or not email:
+        return jsonify({"error": "username、password和email是必填项"}), 400
 
     # 用户名长度限制（3-20个字符）
     if len(username) < 3 or len(username) > 20:
@@ -398,12 +588,16 @@ def register():
     if not re.match(r'^[a-zA-Z0-9_]+$', username):
         return jsonify({"error": "用户名只能包含字母、数字和下划线"}), 400
 
+    # 邮箱格式验证
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email):
+        return jsonify({"error": "邮箱格式不正确"}), 400
+
     # 密码强度验证
     is_valid, error_msg = validate_password(password)
     if not is_valid:
         return jsonify({"error": error_msg}), 400
 
-    # 校验两次输入的密码是否一致
+    # 校验两次输入的密码一致
     if confirm_password != password:
         return jsonify({"error": "两次输入的密码不一致"}), 400
 
@@ -422,24 +616,36 @@ def register():
     if captcha != session_captcha:
         return jsonify({"error": "验证码错误"}), 400
 
+    # 检查用户名是否已存在
     if get_user_by_username(username):
-        return jsonify({"error": "user exists"}), 400
+        return jsonify({"error": "用户名已存在"}), 400
+
+    # 检查邮箱是否已被使用
+    existing_email_user = get_user_by_email(email)
+    if existing_email_user:
+        return jsonify({"error": "该邮箱已被注册"}), 400
 
     # 验证成功后清除验证码，防止重复使用
     session.pop("captcha", None)
     session.pop("captcha_time", None)
 
-    user_id = create_user(username, password)
+    # 创建用户
+    user_id = create_user(username, password, email)
     session["user_id"] = user_id
     session["username"] = username
-    return jsonify({"id": user_id, "username": username})
+    
+    return jsonify({
+        "id": user_id, 
+        "username": username, 
+        "email": email
+    })
 
 
 @app.route("/api/auth/login", methods=["POST"])
 @limiter.limit("30 per hour")  # 限制登录接口每小时最多30次请求（有验证码保护，可适当放宽）
 def login():
     data = request.json or {}
-    username = data.get("username")
+    username_or_email = data.get("username", "").strip()
     password = data.get("password")
     captcha = data.get("captcha", "").strip().upper()
 
@@ -462,19 +668,170 @@ def login():
     session.pop("captcha", None)
     session.pop("captcha_time", None)
 
-    ok, user_id = verify_user(username, password)
-    if not ok:
+    # 判断是邮箱还是用户名
+    user = None
+    if "@" in username_or_email:
+        # 邮箱登录
+        user = get_user_by_email(username_or_email)
+    else:
+        # 用户名登录
+        user = get_user_by_username(username_or_email)
+
+    if not user:
         return jsonify({"error": "invalid credentials"}), 401
+
+    # 验证密码
+    if not check_password_hash(user["password"], password):
+        return jsonify({"error": "invalid credentials"}), 401
+
+    user_id = user["id"]
+    username = user["username"]
+
     session["user_id"] = user_id
     session["username"] = username
-    return jsonify({"id": user_id, "username": username})
+
+    return jsonify({
+        "id": user_id,
+        "username": username,
+        "email": user["email"]
+    })
 
 
 @app.route("/api/auth/me", methods=["GET"])
 def me():
     if "user_id" in session:
-        return jsonify({"id": session["user_id"], "username": session.get("username")})
+        user_id = session["user_id"]
+        conn = get_conn()
+        row = conn.execute(
+            "SELECT id, username, email, email_verified FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+        conn.close()
+        if row:
+            return jsonify({
+                "id": row["id"], 
+                "username": row["username"],
+                "email": row["email"],
+                "email_verified": bool(row["email_verified"])
+            })
+        return jsonify({"id": user_id, "username": session.get("username")})
     return jsonify({"error": "not logged in"}), 401
+
+
+@app.route("/api/auth/verify-email", methods=["POST"])
+def verify_email():
+    """验证邮箱"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.json or {}
+    code = data.get("code", "").strip()
+    
+    if not code:
+        return jsonify({"error": "请输入验证码"}), 400
+    
+    user_id = session["user_id"]
+    user = get_user_by_username(session.get("username"))
+    
+    if not user or not user["email"]:
+        return jsonify({"error": "用户未设置邮箱"}), 400
+    
+    verification = get_valid_email_verification(user["email"], code, 'register')
+    if not verification:
+        return jsonify({"error": "验证码无效或已过期"}), 400
+    
+    mark_email_verification_used(verification["id"])
+    verify_user_email(user_id)
+    
+    return jsonify({"success": True, "message": "邮箱验证成功"})
+
+
+@app.route("/api/auth/resend-verification", methods=["POST"])
+def resend_verification():
+    """重新发送验证邮件"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    user_id = session["user_id"]
+    user = get_user_by_username(session.get("username"))
+    
+    if not user:
+        return jsonify({"error": "用户不存在"}), 400
+    
+    if not user["email"]:
+        return jsonify({"error": "用户未设置邮箱"}), 400
+    
+    if user["email_verified"]:
+        return jsonify({"error": "邮箱已验证"}), 400
+    
+    smtp_config = get_smtp_config()
+    if not smtp_config.get('smtp_enabled') == 'true':
+        return jsonify({"error": "邮件服务未启用"}), 400
+    
+    import secrets
+    verification_code = ''.join(secrets.choice('0123456789') for _ in range(6))
+    from datetime import timedelta
+    expires_at = datetime.now() + timedelta(hours=24)
+    create_email_verification(user_id, user["email"], verification_code, 'register', expires_at)
+    
+    try:
+        send_verification_email(user["email"], verification_code, user["username"])
+        return jsonify({"success": True, "message": "验证邮件已发送"})
+    except Exception as e:
+        print(f"[ERROR] Failed to send verification email: {e}")
+        return jsonify({"error": "发送邮件失败"}), 500
+
+
+@app.route("/api/auth/change-email", methods=["POST"])
+def change_email():
+    """修改邮箱"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.json or {}
+    new_email = data.get("email", "").strip().lower()
+    code = data.get("code", "").strip()
+    
+    if not new_email:
+        return jsonify({"error": "请输入邮箱"}), 400
+    
+    if not re.match(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', new_email):
+        return jsonify({"error": "邮箱格式不正确"}), 400
+    
+    user_id = session["user_id"]
+    current_user = get_user_by_username(session.get("username"))
+    
+    if current_user and current_user["email"] and current_user["email"].lower() == new_email:
+        return jsonify({"error": "该邮箱已是当前使用的邮箱，无需修改"}), 400
+    
+    existing_user = get_user_by_email(new_email)
+    if existing_user and existing_user["id"] != user_id:
+        return jsonify({"error": "该邮箱已被其他用户使用"}), 400
+    
+    if code:
+        verification = get_valid_email_verification(new_email, code, 'change_email')
+        if not verification:
+            return jsonify({"error": "验证码无效或已过期"}), 400
+        
+        mark_email_verification_used(verification["id"])
+        update_user_email_with_verification(user_id, new_email)
+        return jsonify({"success": True, "message": "邮箱修改成功"})
+    else:
+        smtp_config = get_smtp_config()
+        if not smtp_config.get('smtp_enabled') == 'true':
+            return jsonify({"error": "邮件服务未启用，请联系管理员修改邮箱"}), 400
+        
+        import secrets
+        verification_code = ''.join(secrets.choice('0123456789') for _ in range(6))
+        from datetime import timedelta
+        expires_at = datetime.now() + timedelta(hours=24)
+        create_email_verification(user_id, new_email, verification_code, 'change_email', expires_at)
+        
+        try:
+            send_verification_email(new_email, verification_code, current_user["username"], "change_email")
+            return jsonify({"success": True, "message": "验证邮件已发送到新邮箱", "need_code": True})
+        except Exception as e:
+            print(f"[ERROR] Failed to send verification email: {e}")
+            return jsonify({"error": "发送邮件失败"}), 500
 
 
 @app.route("/api/auth/logout", methods=["POST"])
@@ -514,6 +871,53 @@ def change_password():
     return jsonify({"ok": True})
 
 
+@app.route("/api/auth/change-username", methods=["POST"])
+@limiter.limit("5 per hour")  # 限制修改用户名接口每小时最多5次请求
+def change_username():
+    """修改用户名"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+
+    data = request.json or {}
+    new_username = data.get("new_username", "").strip()
+    password = data.get("password", "")
+
+    if not new_username:
+        return jsonify({"error": "请输入新用户名"}), 400
+
+    if not password:
+        return jsonify({"error": "请输入密码确认身份"}), 400
+
+    # 验证用户名格式
+    if not re.match(r'^[a-zA-Z0-9_\u4e00-\u9fa5]{2,20}$', new_username):
+        return jsonify({"error": "用户名只能包含字母、数字、下划线和中文，长度2-20个字符"}), 400
+
+    user_id = session["user_id"]
+    user = get_user_by_username(session.get("username"))
+
+    if not user:
+        return jsonify({"error": "用户不存在"}), 400
+
+    # 验证密码
+    if not check_password_hash(user["password"], password):
+        return jsonify({"error": "密码错误"}), 401
+
+    # 检查用户名是否已存在
+    existing_user = get_user_by_username(new_username)
+    if existing_user and existing_user["id"] != user_id:
+        return jsonify({"error": "该用户名已被使用"}), 400
+
+    # 更新用户名
+    success = update_user_username(user_id, new_username)
+    if not success:
+        return jsonify({"error": "修改用户名失败"}), 500
+
+    # 更新 session 中的用户名
+    session["username"] = new_username
+
+    return jsonify({"ok": True, "username": new_username})
+
+
 # Favorites CRUD (SQLite-backed)
 @app.route("/api/favorites", methods=["GET", "POST", "DELETE"])
 def favorites():
@@ -550,6 +954,8 @@ def favorites():
 @app.route("/api/uploaded", methods=["GET"])
 def get_uploaded():
     """获取所有上传的文章"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     articles = get_uploaded_articles()
     return jsonify(articles)
 
@@ -557,6 +963,9 @@ def get_uploaded():
 @app.route("/api/uploaded", methods=["POST"])
 def save_uploaded():
     """保存上传的文章"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session["user_id"]
     data = request.json or {}
     title = data.get("title")
     author = data.get("author", "佚名")
@@ -588,13 +997,24 @@ def save_uploaded():
     if existing:
         return jsonify({"id": existing[0], "message": "文章已存在，跳过上传"}), 200
 
-    article_id = save_uploaded_article(title, author, content, file_name, file_size)
+    article_id = save_uploaded_article(title, author, content, file_name, file_size, user_id)
     return jsonify({"id": article_id})
 
 
 @app.route("/api/uploaded/<int:article_id>", methods=["DELETE"])
 def delete_uploaded(article_id):
     """删除上传的文章"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    current_user_id = session["user_id"]
+    
+    article = get_uploaded_article_by_id(article_id)
+    if not article:
+        return jsonify({"error": "文章不存在"}), 404
+    
+    if article.get("user_id") != current_user_id:
+        return jsonify({"error": "无权限删除此文章"}), 403
+    
     delete_uploaded_article(article_id)
     return jsonify({"deleted": article_id})
 
@@ -602,6 +1022,8 @@ def delete_uploaded(article_id):
 @app.route("/api/uploaded/clear", methods=["POST"])
 def clear_uploaded():
     """清空上传的文章列表"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     count = 0
     try:
         count = delete_all_uploaded_articles()
@@ -676,56 +1098,245 @@ def download_favorites_zip():
     )
 
 
-# Daily article proxy
-@app.route("/api/daily", methods=["GET"])
-# 取消速率限制，这是用户获取文章的主要接口
-def daily():
-    """获取每日一文"""
-    # 备用API列表
-    api_urls = [
-        "https://api.qhsou.com/api/one.php"
-    ]
+# === 文章源管理 API ===
 
-    article_data = None
+@app.route("/api/sources", methods=["GET"])
+def get_sources():
+    """获取文章源列表"""
+    enabled_only = request.args.get("enabled", "false").lower() == "true"
+    sources = get_article_sources(enabled_only)
+    global_algorithm = get_global_polling_algorithm()
+    return jsonify({
+        "sources": sources,
+        "globalAlgorithm": global_algorithm
+    })
 
-    for api_url in api_urls:
+
+@app.route("/api/sources", methods=["POST"])
+def add_source():
+    """添加文章源"""
+    data = request.json or {}
+    name = data.get("name", "").strip()
+    url = data.get("url", "").strip()
+    api_validation = data.get("api_validation", "").strip() or None
+    polling_algorithm = data.get("polling_algorithm", "sequential")
+    
+    if not name or not url:
+        return jsonify({"error": "name和url是必填项"}), 400
+    
+    if polling_algorithm not in ("sequential", "random"):
+        polling_algorithm = "sequential"
+    
+    # 验证API是否可访问
+    if url:
         try:
-            # 增加 verify=False 提高在受限网络环境下的兼容性
-            resp = requests.get(api_url, timeout=10, verify=False)
-            if resp.ok:
-                data = resp.json()
-                # 尝试多种API返回格式
-                if isinstance(data, dict):
-                    article_data = {
-                        "id": data.get("id")
-                        or data.get("date")
-                        or str(int.from_bytes(os.urandom(2), "little")),
-                        "title": data.get("title")
-                        or data.get("c_title")
-                        or data.get("tt")
-                        or "无标题",
-                        "author": data.get("author") or data.get("c_author") or "未知",
-                        "content": data.get("content")
-                        or data.get("c_content")
-                        or data.get("text")
-                        or data.get("dc")
-                        or "<p>暂无内容</p>",
-                    }
-                    break
+            resp = requests.get(url, timeout=10, verify=False)
+            if not resp.ok:
+                return jsonify({"error": f"API地址不可访问: {resp.status_code}"}), 400
+            
+            if api_validation:
+                try:
+                    data_resp = resp.json()
+                    keys = [k.strip() for k in api_validation.split(",")]
+                    for key in keys:
+                        if key not in data_resp:
+                            return jsonify({"error": f"API验证失败: 缺少字段 {key}"}), 400
+                except:
+                    return jsonify({"error": "API验证失败: 返回的不是有效的JSON"}), 400
+        except requests.exceptions.Timeout:
+            return jsonify({"error": "API地址超时"}), 400
         except Exception as e:
-            print(f"[WARNING] Failed to fetch from {api_url}: {e}")
-            continue
+            return jsonify({"error": f"API地址无效: {str(e)}"}), 400
+    
+    source_id = add_article_source(name, url, api_validation, polling_algorithm, 1)
+    return jsonify({"id": source_id, "message": "文章源添加成功"})
 
-    # 如果所有API都失败，返回错误 (状态码改为 503 避免触发网关 502)
-    if not article_data:
+
+@app.route("/api/sources/<int:source_id>", methods=["PUT"])
+def update_source(source_id):
+    """更新文章源"""
+    data = request.json or {}
+    name = data.get("name")
+    url = data.get("url")
+    api_validation = data.get("api_validation")
+    polling_algorithm = data.get("polling_algorithm")
+    enabled = data.get("enabled")
+    
+    if polling_algorithm and polling_algorithm not in ("sequential", "random"):
+        return jsonify({"error": "polling_algorithm必须是sequential或random"}), 400
+    
+    if enabled is not None and not isinstance(enabled, bool):
+        enabled = bool(enabled)
+    
+    success = update_article_source(source_id, name, url, api_validation, polling_algorithm, enabled)
+    if not success:
+        return jsonify({"error": "文章源不存在"}), 404
+    
+    return jsonify({"message": "文章源更新成功"})
+
+
+@app.route("/api/sources/<int:source_id>", methods=["DELETE"])
+def delete_source(source_id):
+    """删除文章源"""
+    delete_article_source(source_id)
+    return jsonify({"deleted": source_id})
+
+
+@app.route("/api/sources/<int:source_id>/toggle", methods=["POST"])
+def toggle_source(source_id):
+    """切换文章源启用状态"""
+    toggle_article_source(source_id)
+    source = get_article_source_by_id(source_id)
+    return jsonify({"enabled": source["enabled"] if source else False})
+
+
+@app.route("/api/sources/algorithm", methods=["POST"])
+def set_algorithm():
+    """设置全局轮询算法"""
+    data = request.json or {}
+    algorithm = data.get("algorithm", "sequential")
+    
+    if algorithm not in ("sequential", "random"):
+        return jsonify({"error": "algorithm必须是sequential或random"}), 400
+    
+    set_global_polling_algorithm(algorithm)
+    return jsonify({"message": "轮询算法已更新", "algorithm": algorithm})
+
+
+# === 轮询获取文章 ===
+
+def fetch_article_from_source(source):
+    """从指定文章源获取文章，返回 (article_data, error_type)
+    error_type: None (成功), 'timeout' (超时), 'connection' (连接错误), 'invalid' (数据无效)
+    """
+    url = source.get("url")
+    if not url:
+        return None, "invalid"
+    
+    try:
+        resp = requests.get(url, timeout=10, verify=False)
+        if not resp.ok:
+            return None, "invalid"
+        
+        data = resp.json()
+        if isinstance(data, dict):
+            article = {
+                "id": data.get("id") or data.get("date") or str(int.from_bytes(os.urandom(2), "little")),
+                "title": data.get("title") or data.get("c_title") or data.get("tt") or "无标题",
+                "author": data.get("author") or data.get("c_author") or "未知",
+                "content": data.get("content") or data.get("c_content") or data.get("text") or data.get("dc") or "<p>暂无内容</p>",
+                "source": source.get("name")
+            }
+            return article, None
+        return None, "invalid"
+    except requests.exceptions.Timeout:
+        print(f"[WARNING] Timeout fetching from {url}")
+        return None, "timeout"
+    except requests.exceptions.RequestException:
+        print(f"[WARNING] Connection error fetching from {url}")
+        return None, "connection"
+    except Exception as e:
+        print(f"[WARNING] Failed to fetch from {url}: {e}")
+        return None, "invalid"
+
+
+def get_next_source_index(sources, current_index, algorithm):
+    """根据轮询算法获取下一个源索引"""
+    if not sources:
+        return -1
+    
+    if algorithm == "random":
+        import random
+        return random.randint(0, len(sources) - 1)
+    else:
+        return (current_index + 1) % len(sources)
+
+
+_current_source_index = {"index": -1}
+
+
+# 替换原有的 /api/daily 接口
+# 删除旧的 daily 函数定义，从下面开始
+
+
+@app.route("/api/daily", methods=["GET"])
+def daily():
+    """获取每日一文（支持多源轮询）"""
+    sources = get_article_sources(enabled_only=True)
+    
+    # 如果没有启用的源，直接返回错误
+    if not sources:
+        return jsonify(
+            {
+                "error": "no sources enabled",
+                "message": '无可用源，请在"文章来源"页面启用至少一个源。',
+            }
+        ), 503
+    
+    global_algorithm = get_global_polling_algorithm()
+    
+    article_data = None
+    error_types = []  # 记录所有错误类型
+    
+    for i in range(len(sources)):
+        next_index = get_next_source_index(sources, _current_source_index["index"], global_algorithm)
+        _current_source_index["index"] = next_index
+        
+        source = sources[next_index]
+        article, error_type = fetch_article_from_source(source)
+        if article:
+            return jsonify(article)
+        if error_type:
+            error_types.append(error_type)
+    
+    # 所有源都失败，根据错误类型返回不同的提示
+    if "timeout" in error_types:
+        return jsonify(
+            {
+                "error": "all sources timeout",
+                "message": "所有源响应超时，请检查网络连接或稍后重试。",
+            }
+        ), 503
+    elif "connection" in error_types:
+        return jsonify(
+            {
+                "error": "connection failed",
+                "message": "无法连接到文章源，请检查源地址是否正确。",
+            }
+        ), 503
+    else:
         return jsonify(
             {
                 "error": "failed to fetch daily",
-                "message": '无法获取每日一文，请检查容器网络连接。你可以通过"上传中心"功能上传本地文章进行阅读。',
+                "message": "无法从文章源获取文章，请检查源地址的可用性。",
             }
         ), 503
 
-    return jsonify(article_data)
+
+
+# 删除旧的 daily 函数定义，从下面开始
+
+
+
+# Version info API
+@app.route("/api/version", methods=["GET"])
+def get_version():
+    """获取版本信息"""
+    import json
+    version_file = os.path.join(os.path.dirname(__file__), "version.json")
+    try:
+        with open(version_file, "r", encoding="utf-8") as f:
+            version_info = json.load(f)
+        return jsonify(version_info)
+    except Exception as e:
+        return jsonify({
+            "version": "unknown",
+            "build_date": "",
+            "git_commit": "",
+            "git_branch": "",
+            "repository": "https://github.com/TIANXUAN13/ReadZen",
+            "error": str(e)
+        })
 
 
 # Admin APIs (only admin user can access)
@@ -733,31 +1344,300 @@ def daily():
 def admin_users():
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
+        return jsonify({"error": "forbidden"}), 403
+
+    # 支持分页参数
+    try:
+        page = int(request.args.get("page", 1))
+        per_page = min(int(request.args.get("per_page", 10)), 100)  # 最多100
+    except ValueError:
+        page = 1
+        per_page = 10
+
+    if page < 1:
+        page = 1
+    if per_page < 1:
+        per_page = 10
+
+    result = get_users_paginated(page, per_page)
+    return jsonify(result)
+
+
+@app.route("/api/admin/users/batch", methods=["DELETE"])
+def admin_batch_delete_users():
+    """批量删除用户"""
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
     if session.get("username") != "admin":
         return jsonify({"error": "forbidden"}), 403
-    users = get_all_users()
-    return jsonify(users)
+
+    data = request.get_json() or {}
+    user_ids = data.get("user_ids", [])
+
+    if not user_ids or not isinstance(user_ids, list):
+        return jsonify({"error": "user_ids is required and must be a list"}), 400
+
+    # 不能删除自己
+    current_user_id = session["user_id"]
+    if current_user_id in user_ids:
+        return jsonify({"error": "cannot delete yourself"}), 400
+
+    # 检查是否尝试删除 admin 用户
+    for uid in user_ids:
+        username = get_user_username(uid)
+        if username == "admin":
+            return jsonify({"error": "cannot delete admin user"}), 400
+
+    deleted_count = delete_users(user_ids)
+    return jsonify({"deleted_count": deleted_count, "deleted_ids": user_ids})
 
 
 @app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])
 def admin_delete_user(user_id):
     if "user_id" not in session:
         return jsonify({"error": "unauthorized"}), 401
-    if session.get("username") != "admin":
+    current_user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (current_user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
         return jsonify({"error": "forbidden"}), 403
-    if user_id == session["user_id"]:
+    if user_id == current_user_id:
         return jsonify({"error": "cannot delete yourself"}), 400
     delete_user(user_id)
     return jsonify({"deleted": user_id})
 
 
-# 在应用启动时执行初始化
-# 放在全局作用域，确保 Gunicorn 导入时也能执行
-with app.app_context():
+@app.route("/api/admin/smtp", methods=["GET"])
+def admin_get_smtp():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    config = get_smtp_config()
+    if config.get("smtp_password"):
+        config["smtp_password"] = "******"
+    return jsonify(config)
+
+
+@app.route("/api/admin/smtp", methods=["POST"])
+def admin_update_smtp():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    data = request.get_json() or {}
+    
+    config_keys = [
+        'smtp_server', 'smtp_port', 'smtp_username', 'smtp_password',
+        'smtp_from_name', 'smtp_from_email', 'smtp_use_ssl', 'smtp_use_tls', 'smtp_enabled'
+    ]
+    
+    update_data = {}
+    for key in config_keys:
+        if key in data:
+            if key == "smtp_password" and data[key] == "******":
+                continue
+            update_data[key] = str(data[key]) if data[key] is not None else ""
+    
+    update_smtp_config(update_data)
+    return jsonify({"success": True, "message": "SMTP配置已保存"})
+
+
+@app.route("/api/admin/smtp/test", methods=["POST"])
+def admin_test_smtp():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    
+    data = request.get_json() or {}
+    test_email = data.get("email", "").strip()
+    
+    if not test_email:
+        return jsonify({"error": "请输入测试邮箱地址"}), 400
+    
+    config = get_smtp_config()
+    
+    if not config.get("smtp_server") or not config.get("smtp_username"):
+        return jsonify({"error": "SMTP未配置完整"}), 400
+    
     try:
-        initialize_application()
+        subject = "【ReadZen】SMTP 测试邮件"
+        title = "测试成功"
+        greeting = "您好，这是来自 ReadZen 的测试邮件。"
+        content = "如果您收到这封邮件，说明 SMTP 配置正确，您可以正常使用邮件功能了。"
+        html_body = get_email_template(title, greeting, content)
+        send_html_email(test_email, subject, html_body)
+        
+        return jsonify({"success": True, "message": f"测试邮件已发送至 {test_email}"})
     except Exception as e:
-        print(f"[CRITICAL] Failed to initialize application: {e}")
+        return jsonify({"error": f"发送失败: {str(e)}"}), 500
+
+
+@app.route("/api/admin/reset-password/<int:user_id>", methods=["POST"])
+def admin_reset_user_password(user_id):
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    current_user_id = session.get("user_id")
+    conn = get_conn()
+    row = conn.execute("SELECT role FROM users WHERE id = ?", (current_user_id,)).fetchone()
+    conn.close()
+    if not row or row["role"] != "admin":
+        return jsonify({"error": "forbidden"}), 403
+    
+    data = request.get_json() or {}
+    new_password = data.get("password", "").strip()
+    
+    if not new_password:
+        return jsonify({"error": "密码不能为空"}), 400
+    is_valid, error_msg = validate_password(new_password)
+    if not is_valid:
+        return jsonify({"error": error_msg}), 400
+    
+    update_user_password(user_id, new_password)
+    return jsonify({"success": True, "message": "密码已重置"})
+
+
+@app.route("/api/auth/check-smtp", methods=["GET"])
+def check_smtp_enabled():
+    config = get_smtp_config()
+    enabled = config.get("smtp_enabled", "false").lower() == "true"
+    has_config = bool(config.get("smtp_server") and config.get("smtp_username"))
+    
+    if enabled and has_config:
+        return jsonify({"enabled": True})
+    else:
+        admin_email = get_config("admin_contact_email", "")
+        return jsonify({
+            "enabled": False,
+            "admin_email": admin_email,
+            "message": "未配置邮件服务，请联系管理员重置密码"
+        })
+
+
+@app.route("/api/auth/forgot-password", methods=["POST"])
+def forgot_password():
+    from datetime import timedelta
+    
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "请输入邮箱地址"}), 400
+    
+    config = get_smtp_config()
+    enabled = config.get("smtp_enabled", "false").lower() == "true"
+    
+    if not enabled or not config.get("smtp_server"):
+        return jsonify({"error": "邮件服务未启用，请联系管理员"}), 400
+    
+    user = get_user_by_email(email)
+    if not user:
+        return jsonify({"success": True, "message": "如果该邮箱已注册，您将收到重置邮件"})
+    
+    import secrets
+    code = ''.join(secrets.choice('0123456789') for _ in range(6))
+    expires_at = datetime.now() + timedelta(minutes=10)
+    
+    create_password_reset(email, code, expires_at, user["id"])
+    
+    try:
+        subject = "【ReadZen】密码重置"
+        title = "重置您的密码"
+        greeting = "您好，我们收到了您的密码重置请求。"
+        content = "请使用上面的验证码重置您的密码。如果这不是您本人操作，请立即更改您的账户密码。"
+        html_body = get_email_template(title, greeting, content, code, "重置验证码", expiry_hours=10)
+        send_html_email(email, subject, html_body)
+        
+        return jsonify({"success": True, "message": "验证码已发送至您的邮箱"})
+    except Exception as e:
+        print(f"[ERROR] Failed to send reset email: {e}")
+        return jsonify({"error": "发送邮件失败，请稍后重试"}), 500
+
+
+@app.route("/api/auth/reset-password", methods=["POST"])
+def reset_password():
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    code = data.get("code", "").strip()
+    new_password = data.get("password", "").strip()
+    
+    if not email or not code or not new_password:
+        return jsonify({"error": "请填写完整信息"}), 400
+    
+    if len(new_password) < 6:
+        return jsonify({"error": "密码至少6位"}), 400
+    
+    reset_record = get_valid_password_reset(email, code)
+    if not reset_record:
+        return jsonify({"error": "验证码无效或已过期"}), 400
+    
+    user = get_user_by_email(email)
+    if not user:
+        return jsonify({"error": "用户不存在"}), 400
+    
+    update_user_password(user["id"], new_password)
+    mark_password_reset_used(reset_record["id"])
+    
+    return jsonify({"success": True, "message": "密码重置成功，请登录"})
+
+
+@app.route("/api/user/email", methods=["GET"])
+def get_user_email():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT email FROM users WHERE id = ?", (session["user_id"],)
+    ).fetchone()
+    conn.close()
+    
+    return jsonify({"email": row["email"] if row else None})
+
+
+@app.route("/api/user/email", methods=["POST"])
+def update_user_email_api():
+    if "user_id" not in session:
+        return jsonify({"error": "unauthorized"}), 401
+    
+    data = request.get_json() or {}
+    email = data.get("email", "").strip().lower()
+    
+    if not email:
+        return jsonify({"error": "请输入邮箱地址"}), 400
+    
+    existing = get_user_by_email(email)
+    if existing and existing["id"] != session["user_id"]:
+        return jsonify({"error": "该邮箱已被其他用户使用"}), 400
+    
+    update_user_email(session["user_id"], email)
+    return jsonify({"success": True, "message": "邮箱已更新"})
+
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 15000))

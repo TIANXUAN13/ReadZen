@@ -307,14 +307,32 @@
                                                 >
                                                     {{ uploadedArticles.length }}
                                                 </span>
-                                            </button>
-                                        </li>
-                                    </ul>
-                                 </transition>
-                             </div>
-                          </li>
+                                             </button>
+                                         </li>
+                                     </ul>
+                                  </div>
+                           </li>
 
-                          <!-- 用户管理入口 (仅 admin 可见) -->
+                           <!-- 个人信息入口 -->
+                           <li v-if="user">
+                               <button
+                                   @click="activeTab = 'profile'; isSidebarCollapsed = true"
+                                   :class="[
+                                       'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                       activeTab === 'profile'
+                                           ? (backgroundColor === 'dark' ? 'bg-blue-600/20 text-blue-400 shadow-[inset_0_0_20px_rgba(59,130,246,0.1)]' : 'bg-blue-50 text-blue-600 shadow-sm') 
+                                           : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-100 text-gray-600')
+                                   ]"
+                               >
+                                   <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-blue-500 transition-transform duration-300', activeTab === 'profile' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                   <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'profile' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                   </svg>
+                                   <span class="font-medium">个人信息</span>
+                               </button>
+                           </li>
+
+                           <!-- 用户管理入口 (仅 admin 可见) -->
                           <li v-if="user && user.username === 'admin'">
                               <button
                                   @click="activeTab = 'admin'; isSidebarCollapsed = true"
@@ -330,6 +348,44 @@
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                   </svg>
                                   <span class="font-medium">用户管理</span>
+                              </button>
+                          </li>
+
+                          <!-- 文章来源管理入口 (仅 admin 可见) -->
+                          <li v-if="user && user.username === 'admin'">
+                              <button
+                                  @click="activeTab = 'sources'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                      activeTab === 'sources'
+                                          ? (backgroundColor === 'dark' ? 'bg-indigo-600/20 text-indigo-400 shadow-[inset_0_0_20px_rgba(99,102,241,0.1)]' : 'bg-indigo-50 text-indigo-600 shadow-sm')
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-100 text-gray-600')
+                                  ]"
+                              >
+                                  <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-indigo-500 transition-transform duration-300', activeTab === 'sources' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                  <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'sources' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.658 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                  </svg>
+                                  <span class="font-medium">文章来源</span>
+                              </button>
+                          </li>
+
+                          <!-- 关于 -->
+                          <li>
+                              <button
+                                  @click="activeTab = 'about'; isSidebarCollapsed = true"
+                                  :class="[
+                                      'group flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-300 relative overflow-hidden',
+                                      activeTab === 'about'
+                                          ? (backgroundColor === 'dark' ? 'bg-emerald-600/20 text-emerald-400 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)]' : 'bg-emerald-50 text-emerald-600 shadow-sm')
+                                          : (backgroundColor === 'dark' ? 'hover:bg-gray-800/50 text-gray-400' : 'hover:bg-gray-100 text-gray-600')
+                                  ]"
+                              >
+                                  <div :class="['absolute left-0 top-0 bottom-0 w-1 bg-emerald-500 transition-transform duration-300', activeTab === 'about' ? 'scale-y-100' : 'scale-y-0']"></div>
+                                  <svg xmlns="http://www.w3.org/2000/svg" :class="['h-5 w-5 transition-transform duration-300', activeTab === 'about' ? 'scale-110' : 'group-hover:scale-110']" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                  </svg>
+                                  <span class="font-medium">关于</span>
                               </button>
                           </li>
                        </ul>
@@ -486,10 +542,10 @@
                             <transition name="auth-slide" mode="out-in">
                                 <!-- 登录表单 -->
                                 <div v-if="authMode === 'login'" key="login" class="space-y-4">
-                                    <input 
+                                    <input
                                         v-model="loginForm.username"
                                         type="text"
-                                        placeholder="您的用户名"
+                                        placeholder="用户名或邮箱"
                                         class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                         :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                     />
@@ -508,7 +564,7 @@
                                             placeholder="验证码"
                                             maxlength="4"
                                             @keyup.enter="doLogin"
-                                            class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                            class="input-zen flex-1 min-w-0 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                             :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                         />
                                         <div class="relative group cursor-pointer flex-shrink-0" @click="refreshCaptcha">
@@ -517,8 +573,8 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </div>
-                                            <img v-if="captchaImage" :src="captchaImage" class="w-[152px] h-[48px] rounded-xl border-2 object-cover shadow-sm" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'" />
-                                            <div v-else class="w-36 h-11 rounded-xl border flex items-center justify-center animate-pulse" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'">
+                                            <img v-if="captchaImage" :src="captchaImage" class="w-32 h-11 sm:w-44 sm:h-14 rounded-xl border-2 object-cover shadow-sm" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'" />
+                                            <div v-else class="w-32 h-11 sm:w-44 sm:h-14 rounded-xl border flex items-center justify-center animate-pulse" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'">
                                                 <div class="h-4 w-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
                                             </div>
                                         </div>
@@ -526,6 +582,14 @@
                                     <button @click="doLogin" class="w-full py-3.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 transition-all active:scale-[0.98]">
                                         立即登录
                                     </button>
+                                    <div class="text-center mt-3">
+                                        <button 
+                                            @click="openForgotPassword"
+                                            :class="['text-sm hover:underline', backgroundColor === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600']"
+                                        >
+                                            忘记密码？
+                                        </button>
+                                    </div>
                                 </div>
                                 
                                 <!-- 注册表单 -->
@@ -534,6 +598,14 @@
                                     v-model="regForm.username"
                                     type="text"
                                     placeholder="设置用户名"
+                                    class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                />
+                                <input 
+                                    v-model="regForm.email"
+                                    type="email"
+                                    placeholder="邮箱地址"
+                                    @keyup.enter="doRegister"
                                     class="input-zen w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                     :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                 />
@@ -560,7 +632,7 @@
                                     placeholder="验证码"
                                     maxlength="4"
                                     @keyup.enter="doRegister"
-                                    class="input-zen flex-1 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
+                                    class="input-zen flex-1 min-w-0 px-4 py-3 rounded-xl border text-sm transition-all shadow-inner"
                                     :class="[backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
                                 />
                                         <div class="relative group cursor-pointer flex-shrink-0" @click="refreshCaptcha">
@@ -569,8 +641,8 @@
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
                                             </div>
-                                            <img v-if="captchaImage" :src="captchaImage" class="w-[152px] h-[48px] rounded-xl border-2 object-cover shadow-sm" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'" />
-                                            <div v-else class="w-36 h-11 rounded-xl border flex items-center justify-center animate-pulse" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'">
+                                            <img v-if="captchaImage" :src="captchaImage" class="w-32 h-11 sm:w-44 sm:h-14 rounded-xl border-2 object-cover shadow-sm" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'" />
+                                            <div v-else class="w-32 h-11 sm:w-44 sm:h-14 rounded-xl border flex items-center justify-center animate-pulse" :class="backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'">
                                                 <div class="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
                                             </div>
                                         </div>
@@ -580,6 +652,120 @@
                                     </button>
                                 </div>
                             </transition>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+            
+            <!-- 忘记密码弹窗 -->
+            <transition name="toast">
+                <div v-if="showForgotPassword" class="fixed inset-0 z-[75] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" @click.self="showForgotPassword = false">
+                    <div :class="['w-full max-w-md rounded-3xl shadow-2xl overflow-hidden glass-panel border transition-all duration-300', backgroundColor === 'dark' ? 'bg-gray-900/80 border-gray-700' : 'bg-white/90 border-white']">
+                        <div class="p-6 pb-0 flex justify-between items-center">
+                            <div class="flex flex-col">
+                                <h3 :class="['text-xl font-bold tracking-tight', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                                    找回密码
+                                </h3>
+                                <p class="text-xs opacity-50 mt-1">
+                                    通过邮箱验证码重置密码
+                                </p>
+                            </div>
+                            <button @click="showForgotPassword = false" :class="['p-2 rounded-full hover:bg-black/10 transition-colors', backgroundColor === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-400']">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+                        
+                        <div class="p-6">
+                            <!-- SMTP 未配置时的提示 -->
+                            <div v-if="!smtpEnabled" class="text-center py-6">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                <p :class="['text-sm mb-2', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">邮件服务未启用</p>
+                                <p :class="['text-xs opacity-60', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                                    请联系管理员重置密码
+                                </p>
+                                <p v-if="smtpInfo.admin_email" :class="['text-xs mt-2', backgroundColor === 'dark' ? 'text-blue-400' : 'text-blue-500']">
+                                    管理员邮箱: {{ smtpInfo.admin_email }}
+                                </p>
+                            </div>
+                            
+                            <!-- SMTP 已配置时的表单 -->
+                            <div v-else>
+                                <!-- 步骤1: 输入邮箱 -->
+                                <div v-if="forgotStep === 1">
+                                    <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">注册邮箱</label>
+                                    <input 
+                                        v-model="forgotEmail"
+                                        type="email"
+                                        placeholder="请输入注册时使用的邮箱"
+                                        :class="['w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner', backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <button 
+                                        @click="sendResetCode"
+                                        :disabled="!forgotEmail || sendingCode"
+                                        :class="['w-full mt-4 py-3 rounded-xl text-sm font-bold text-white transition-all', (!forgotEmail || sendingCode) ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-lg shadow-blue-500/30 active:scale-[0.98]']"
+                                    >
+                                        {{ sendingCode ? '发送中...' : '发送验证码' }}
+                                    </button>
+                                </div>
+                                
+                                <!-- 步骤2: 输入验证码和新密码 -->
+                                <div v-else-if="forgotStep === 2">
+                                    <div class="text-center mb-4">
+                                        <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">
+                                            验证码已发送至 <span :class="['font-medium', backgroundColor === 'dark' ? 'text-blue-400' : 'text-blue-500']">{{ forgotEmail }}</span>
+                                        </p>
+                                    </div>
+                                    <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">验证码</label>
+                                    <input 
+                                        v-model="forgotCode"
+                                        type="text"
+                                        maxlength="6"
+                                        placeholder="请输入6位验证码"
+                                        :class="['w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner', backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <label :class="['block text-sm font-medium mb-1 mt-3', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">新密码</label>
+                                    <input 
+                                        v-model="forgotNewPassword"
+                                        type="password"
+                                        placeholder="请设置新密码 (至少6位)"
+                                        :class="['w-full px-4 py-3 rounded-xl border text-sm transition-all shadow-inner', backgroundColor === 'dark' ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']"
+                                    />
+                                    <div class="flex gap-2 mt-4">
+                                        <button 
+                                            @click="forgotStep = 1"
+                                            :class="['flex-1 py-3 rounded-xl text-sm font-medium border transition-colors', backgroundColor === 'dark' ? 'border-gray-600 text-gray-300 hover:bg-gray-800' : 'border-gray-300 text-gray-700 hover:bg-gray-50']"
+                                        >
+                                            返回
+                                        </button>
+                                        <button 
+                                            @click="resetPassword"
+                                            :disabled="!forgotCode || !forgotNewPassword || forgotNewPassword.length < 6 || resettingPassword"
+                                            :class="['flex-1 py-3 rounded-xl text-sm font-bold text-white transition-all', (!forgotCode || !forgotNewPassword || forgotNewPassword.length < 6 || resettingPassword) ? 'opacity-50 cursor-not-allowed bg-gray-400' : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/30 active:scale-[0.98]']"
+                                        >
+                                            {{ resettingPassword ? '重置中...' : '重置密码' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <!-- 步骤3: 成功 -->
+                                <div v-else-if="forgotStep === 3" class="text-center py-4">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    </svg>
+                                    <p :class="['text-lg font-medium mb-2', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">密码重置成功！</p>
+                                    <p :class="['text-sm opacity-60 mb-4', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">请使用新密码登录</p>
+                                    <button 
+                                        @click="closeForgotPassword"
+                                        :class="['px-6 py-2 rounded-xl text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 transition-colors']"
+                                    >
+                                        去登录
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -734,12 +920,12 @@
                                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                                  </svg>
-                                             </button>
-                                         </div>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
+                                              </button>
+                                          </div>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
 
                          <!-- 本次选择的本地文件 -->
                          <div v-if="localArticles.length > 0">
@@ -820,17 +1006,91 @@
                                           <button @click.stop="removeFavorite(item.id)" class="text-red-500 hover:text-red-700 p-1 rounded transition-colors" title="移除收藏">
                                               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                              </svg>
-                                          </button>
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-                       </div>
-                   </div>
+                                                  </svg>
+                                               </button>
+                                       </div>
+                                   </div>
+                               </div>
+                            </div>
+                        </div>
+                    </div>
 
-                  <!-- 用户管理页面 (仅 admin 可见) -->
-                  <div v-else-if="activeTab === 'admin'" class="h-full overflow-y-auto p-6">
+                    <!-- 个人信息页面 -->
+                    <div v-else-if="activeTab === 'profile'" class="h-full overflow-y-auto p-6">
+                        <div class="max-w-2xl mx-auto">
+                            <div :class="['rounded-lg p-6 mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                <div class="flex items-center gap-4 mb-6">
+                                    <div :class="['w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold', backgroundColor === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-600']">
+                                        {{ user?.username?.charAt(0).toUpperCase() }}
+                                    </div>
+                                    <div>
+                                        <h2 class="text-xl font-bold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">
+                                            {{ user?.username }}
+                                        </h2>
+                                        <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                                            ID: {{ user?.id }}
+                                        </p>
+                                    </div>
+                                </div>
+                                
+                                <div class="space-y-4">
+                                    <div :class="['flex justify-between items-center p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-gray-50']">
+                                        <div>
+                                            <p :class="['text-sm font-medium', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">用户名</p>
+                                            <p :class="['text-lg', backgroundColor === 'dark' ? 'text-white' : 'text-gray-900']">{{ user?.username }}</p>
+                                        </div>
+                                        <button
+                                            @click="openChangeUsername"
+                                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                        >
+                                            修改
+                                        </button>
+                                    </div>
+
+                                    <div :class="['flex justify-between items-center p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-gray-50']">
+                                        <div>
+                                            <p :class="['text-sm font-medium', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">邮箱地址</p>
+                                            <p :class="['text-lg', backgroundColor === 'dark' ? 'text-white' : 'text-gray-900']">
+                                                {{ user?.email || '未设置' }}
+                                            </p>
+                                        </div>
+                                        <button 
+                                            @click="openChangeEmail"
+                                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                        >
+                                            修改
+                                        </button>
+                                    </div>
+                                    
+                                    <div :class="['flex justify-between items-center p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-700' : 'bg-gray-50']">
+                                        <div>
+                                            <p :class="['text-sm font-medium', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">密码</p>
+                                            <p :class="['text-lg', backgroundColor === 'dark' ? 'text-white' : 'text-gray-900']">••••••••</p>
+                                        </div>
+                                        <button 
+                                            @click="openChangePassword"
+                                            :class="['px-3 py-1.5 rounded text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                        >
+                                            修改
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div :class="['rounded-lg p-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">账户操作</h3>
+                                <button 
+                                    @click="doLogout"
+                                    :class="['w-full py-3 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-red-600 hover:bg-red-700 text-white' : 'bg-red-500 hover:bg-red-600 text-white']"
+                                >
+                                    退出登录
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                       <!-- 用户管理页面 (仅 admin 可见) -->
+                      <div v-else-if="activeTab === 'admin'" class="h-full overflow-y-auto p-6">
                       <div class="max-w-4xl mx-auto">
                           <div v-if="loadingUsers" class="text-center py-12">
                               <div class="animate-spin rounded-full h-8 w-8 border-b-2 mx-auto mb-4" :style="{ borderColor: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }"></div>
@@ -844,28 +1104,62 @@
                               <p class="text-sm opacity-40 mt-2">只有管理员可以访问此页面</p>
                           </div>
                           <div v-else>
-                              <div :class="['flex justify-between items-center mb-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <div :class="['flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
                                   <div>
                                       <h3 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">用户列表</h3>
-                                      <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">共 {{ allUsers.length }} 个用户</p>
+                                      <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">共 {{ userTotal }} 个用户</p>
                                   </div>
-                                  <button 
-                                      @click="loadAllUsers"
-                                      :class="['px-4 py-2 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
-                                  >
-                                      刷新
-                                  </button>
+                                  <div class="flex flex-wrap items-center gap-2">
+                                      <!-- 批量操作 -->
+                                      <div v-if="selectedUserIds.size > 0" class="flex items-center gap-2">
+                                          <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">已选 {{ selectedUserIds.size }} 个</span>
+                                          <button
+                                              @click="batchDeleteUsers"
+                                              class="px-3 py-1.5 rounded-lg text-sm font-medium bg-red-500 hover:bg-red-600 text-white transition-colors"
+                                          >
+                                              批量删除
+                                          </button>
+                                          <button
+                                              @click="clearSelection"
+                                              :class="['px-3 py-1.5 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-gray-300' : 'bg-gray-200 hover:bg-gray-300 text-gray-700']"
+                                          >
+                                              取消选择
+                                          </button>
+                                      </div>
+                                      <!-- 每页数量选择 -->
+                                      <select
+                                          :value="userPerPage"
+                                          @change="changePerPage(parseInt($event.target.value))"
+                                          :class="['px-3 py-1.5 rounded-lg text-sm border cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700']"
+                                      >
+                                          <option v-for="opt in perPageOptions" :key="opt" :value="opt">{{ opt }} 条/页</option>
+                                      </select>
+                                      <button
+                                          @click="loadAllUsers"
+                                          :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']"
+                                      >
+                                          刷新
+                                      </button>
+                                  </div>
                               </div>
-                              
+
                               <div v-if="allUsers.length === 0" class="text-center py-12">
                                   <p :class="['text-lg opacity-60', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">暂无用户</p>
                               </div>
-                              
+
                               <div v-else :class="['rounded-lg overflow-hidden', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
                                   <div class="overflow-x-auto">
                                       <table class="w-full min-w-[600px] md:min-w-full">
                                           <thead :class="['text-left text-sm font-medium', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700']">
                                               <tr>
+                                                  <th class="px-4 py-3 w-12">
+                                                      <input
+                                                          type="checkbox"
+                                                          :checked="selectAllCurrentPage"
+                                                          @change="toggleSelectAll"
+                                                          :class="['w-4 h-4 rounded cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-600 border-gray-500' : 'border-gray-300']"
+                                                      />
+                                                  </th>
                                                   <th class="px-4 py-3 w-16">ID</th>
                                                   <th class="px-4 py-3">用户名</th>
                                                   <th class="px-4 py-3 hidden sm:table-cell">注册时间</th>
@@ -873,11 +1167,22 @@
                                               </tr>
                                           </thead>
                                           <tbody :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">
-                                              <tr 
-                                                  v-for="u in allUsers" 
+                                              <tr
+                                                  v-for="u in allUsers"
                                                   :key="u.id"
-                                                  :class="['border-t', backgroundColor === 'dark' ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50']"
+                                                  :class="['border-t transition-colors',
+                                                      selectedUserIds.has(u.id) ? (backgroundColor === 'dark' ? 'bg-blue-900/30' : 'bg-blue-50') : '',
+                                                      backgroundColor === 'dark' ? 'border-gray-700 hover:bg-gray-750' : 'border-gray-100 hover:bg-gray-50']"
                                               >
+                                                  <td class="px-4 py-3">
+                                                      <input
+                                                          v-if="u.id !== user.id && u.username !== 'admin'"
+                                                          type="checkbox"
+                                                          :checked="selectedUserIds.has(u.id)"
+                                                          @change="toggleUserSelect(u.id)"
+                                                          :class="['w-4 h-4 rounded cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-600 border-gray-500' : 'border-gray-300']"
+                                                      />
+                                                  </td>
                                                   <td class="px-4 py-3">{{ u.id }}</td>
                                                   <td class="px-4 py-3">
                                                       <div class="flex flex-col sm:flex-row sm:items-center">
@@ -895,7 +1200,7 @@
                                                   <td class="px-4 py-3 hidden sm:table-cell">{{ new Date(u.created_at).toLocaleString() }}</td>
                                                    <td class="px-4 py-3 text-right">
                                                         <div class="flex justify-end gap-2">
-                                                            <button 
+                                                            <button
                                                                 v-if="u.id !== user.id"
                                                                 @click="deleteUser(u.id)"
                                                                 :class="['px-2 py-1 rounded text-xs font-medium text-red-500 hover:bg-red-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
@@ -903,7 +1208,7 @@
                                                             >
                                                                 删除
                                                             </button>
-                                                            <button 
+                                                            <button
                                                                 v-if="u.id === user.id"
                                                                 @click="openChangePassword"
                                                                 :class="['px-2 py-1 rounded text-xs font-medium text-blue-500 hover:bg-blue-50 transition-colors', backgroundColor === 'dark' ? 'hover:bg-gray-700' : '']"
@@ -912,13 +1217,221 @@
                                                                 修改密码
                                                             </button>
                                                             <span v-if="u.id !== user.id && u.username === 'admin'" class="text-gray-400 text-xs">-</span>
-                                                        </div>
-                                                    </td>
-                                              </tr>
-                                          </tbody>
-                                      </table>
+                                                         </div>
+                                                     </td>
+                                               </tr>
+                                           </tbody>
+                                       </table>
+                                   </div>
+
+                                  <!-- 分页控件 -->
+                                  <div v-if="userTotalPages > 1" :class="['flex flex-col sm:flex-row justify-between items-center gap-4 px-4 py-3 border-t', backgroundColor === 'dark' ? 'border-gray-700' : 'border-gray-200']">
+                                      <div :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                                          第 {{ userPage }} / {{ userTotalPages }} 页，共 {{ userTotal }} 条
+                                      </div>
+                                      <div class="flex items-center gap-1">
+                                          <button
+                                              @click="goToPage(1)"
+                                              :disabled="userPage === 1"
+                                              :class="['px-2 py-1 rounded text-sm transition-colors', userPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']"
+                                          >
+                                              首页
+                                          </button>
+                                          <button
+                                              @click="goToPage(userPage - 1)"
+                                              :disabled="userPage === 1"
+                                              :class="['px-3 py-1 rounded text-sm transition-colors', userPage === 1 ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']"
+                                          >
+                                              上一页
+                                          </button>
+                                          <!-- 页码按钮 -->
+                                          <template v-for="p in getVisiblePages()" :key="p">
+                                              <span v-if="p === '...'" :class="['px-2 py-1 text-sm', backgroundColor === 'dark' ? 'text-gray-500' : 'text-gray-400']">...</span>
+                                              <button
+                                                  v-else
+                                                  @click="goToPage(p)"
+                                                  :class="['px-3 py-1 rounded text-sm transition-colors',
+                                                      userPage === p
+                                                          ? (backgroundColor === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white')
+                                                          : (backgroundColor === 'dark' ? 'text-gray-300 hover:bg-gray-700' : 'text-gray-600 hover:bg-gray-100')]"
+                                              >
+                                                  {{ p }}
+                                              </button>
+                                          </template>
+                                          <button
+                                              @click="goToPage(userPage + 1)"
+                                              :disabled="userPage === userTotalPages"
+                                              :class="['px-3 py-1 rounded text-sm transition-colors', userPage === userTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']"
+                                          >
+                                              下一页
+                                          </button>
+                                          <button
+                                              @click="goToPage(userTotalPages)"
+                                              :disabled="userPage === userTotalPages"
+                                              :class="['px-2 py-1 rounded text-sm transition-colors', userPage === userTotalPages ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-100 dark:hover:bg-gray-700', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']"
+                                          >
+                                              末页
+                                          </button>
+                                      </div>
                                   </div>
                               </div>
+                              
+                              <!-- SMTP 配置区域 -->
+                              <div :class="['mt-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                  <div class="flex justify-between items-center mb-4">
+                                      <div>
+                                          <h3 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">邮件服务配置</h3>
+                                          <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">用于密码找回功能</p>
+                                      </div>
+                                      <div class="flex items-center gap-2">
+                                          <span :class="['text-sm', smtpConfig.smtp_enabled === 'true' ? 'text-green-500' : 'text-gray-400']">
+                                              {{ smtpConfig.smtp_enabled === 'true' ? '已启用' : '未启用' }}
+                                          </span>
+                                          <button 
+                                              @click="smtpConfig.smtp_enabled = smtpConfig.smtp_enabled === 'true' ? 'false' : 'true'"
+                                              :class="['relative w-12 h-6 rounded-full transition-colors', smtpConfig.smtp_enabled === 'true' ? 'bg-green-500' : (backgroundColor === 'dark' ? 'bg-gray-600' : 'bg-gray-300')]"
+                                          >
+                                              <span :class="['absolute top-1 w-4 h-4 rounded-full bg-white transition-all', smtpConfig.smtp_enabled === 'true' ? 'right-1' : 'left-1']"></span>
+                                          </button>
+                                      </div>
+                                  </div>
+                                  
+                                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">SMTP 服务器</label>
+                                          <input v-model="smtpConfig.smtp_server" type="text" placeholder="smtp.gmail.com" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">端口</label>
+                                          <input v-model="smtpConfig.smtp_port" type="text" placeholder="587" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">用户名 (邮箱)</label>
+                                          <input v-model="smtpConfig.smtp_username" type="text" placeholder="your@email.com" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">密码/授权码</label>
+                                          <input v-model="smtpConfig.smtp_password" type="password" placeholder="••••••••" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">发件人名称</label>
+                                          <input v-model="smtpConfig.smtp_from_name" type="text" placeholder="ReadZen" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                      <div>
+                                          <label :class="['block text-sm font-medium mb-1', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">发件人邮箱</label>
+                                          <input v-model="smtpConfig.smtp_from_email" type="text" placeholder="noreply@example.com" :class="['w-full px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      </div>
+                                  </div>
+                                  
+                                  <div class="flex flex-wrap gap-4 mt-4">
+                                      <label class="flex items-center gap-2 cursor-pointer">
+                                          <input type="checkbox" v-model="smtpConfigTls" class="w-4 h-4 rounded" />
+                                          <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">使用 TLS</span>
+                                      </label>
+                                      <label class="flex items-center gap-2 cursor-pointer">
+                                          <input type="checkbox" v-model="smtpConfigSsl" class="w-4 h-4 rounded" />
+                                          <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700']">使用 SSL</span>
+                                      </label>
+                                  </div>
+                                  
+                                  <div class="flex flex-col sm:flex-row gap-2 mt-4">
+                                      <button @click="saveSmtpConfig" :disabled="savingSmtp" :class="['px-4 py-2 rounded-lg text-sm font-medium', savingSmtp ? 'opacity-50 cursor-not-allowed' : '', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']">
+                                          {{ savingSmtp ? '保存中...' : '保存配置' }}
+                                      </button>
+                                      <button @click="testSmtpConfig" :disabled="testingSmtp" :class="['px-4 py-2 rounded-lg text-sm font-medium border', testingSmtp ? 'opacity-50 cursor-not-allowed' : '', backgroundColor === 'dark' ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700']">
+                                          {{ testingSmtp ? '发送中...' : '发送测试邮件' }}
+                                      </button>
+                                  </div>
+                              </div>
+                              
+                              <!-- 管理员重置密码区域 -->
+                              <div :class="['mt-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                                  <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">管理员重置密码</h3>
+                                  <p :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">当用户忘记密码且未配置邮件服务时，可在此手动重置</p>
+                                  <div class="flex flex-col sm:flex-row gap-2">
+                                      <select v-model="resetPasswordUserId" :class="['flex-1 px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-gray-50 border-gray-200 text-gray-800']">
+                                          <option value="">选择用户</option>
+                                          <option v-for="u in allUsers.filter(u => u.id !== user.id)" :key="u.id" :value="u.id">{{ u.username }}</option>
+                                      </select>
+                                      <input v-model="resetPasswordNew" type="password" placeholder="新密码" :class="['flex-1 px-3 py-2 rounded-lg border text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-400']" />
+                                      <button @click="adminResetPassword" :disabled="!resetPasswordUserId || !resetPasswordNew" :class="['px-4 py-2 rounded-lg text-sm font-medium', (!resetPasswordUserId || !resetPasswordNew) ? 'opacity-50 cursor-not-allowed' : '', backgroundColor === 'dark' ? 'bg-orange-600 hover:bg-orange-700 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white']">
+                                          重置密码
+                                      </button>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+                  <!-- 关于页面 -->
+                  <div v-else-if="activeTab === 'about'" class="h-full overflow-y-auto p-6">
+                      <div class="max-w-2xl mx-auto">
+                          <div :class="['rounded-lg p-6 mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <div class="text-center mb-6">
+                                  <h2 class="text-2xl font-bold mb-2" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">ReadZen</h2>
+                                  <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">享受阅读时光</p>
+                              </div>
+
+                              <div v-if="loadingVersion" class="text-center py-8">
+                                  <div class="animate-spin rounded-full h-6 w-6 border-b-2 mx-auto mb-3" :style="{ borderColor: backgroundColor === 'dark' ? '#9ca3af' : '#6b7280' }"></div>
+                                  <p :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">加载版本信息...</p>
+                              </div>
+
+                              <div v-else :class="['space-y-4', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">
+                                  <div class="flex justify-between items-center py-2 border-b" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">版本</span>
+                                      <span class="font-mono text-sm font-medium">{{ versionInfo.version || '-' }}</span>
+                                  </div>
+                                  <div class="flex justify-between items-center py-2 border-b" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">构建时间</span>
+                                      <span class="font-mono text-sm">{{ versionInfo.build_date || '-' }}</span>
+                                  </div>
+                                  <div class="flex justify-between items-center py-2 border-b" :style="{ borderColor: backgroundColor === 'dark' ? '#374151' : '#e5e7eb' }">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">Git 分支</span>
+                                      <span class="font-mono text-sm">{{ versionInfo.git_branch || '-' }}</span>
+                                  </div>
+                                  <div class="flex justify-between items-center py-2">
+                                      <span :class="['text-sm', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">Git 提交</span>
+                                      <span class="font-mono text-sm" :title="versionInfo.git_commit">{{ versionInfo.git_commit ? versionInfo.git_commit.substring(0, 8) : '-' }}</span>
+                                  </div>
+                              </div>
+                          </div>
+
+                          <div :class="['rounded-lg p-6 mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">项目地址</h3>
+                              <a
+                                  :href="versionInfo.repository || 'https://github.com/TIANXUAN13/ReadZen'"
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  :class="['flex items-center gap-2 text-sm transition-colors', backgroundColor === 'dark' ? 'text-blue-400 hover:text-blue-300' : 'text-blue-500 hover:text-blue-600']"
+                              >
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
+                                      <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+                                  </svg>
+                                  <span>GitHub - TIANXUAN13/ReadZen</span>
+                                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                  </svg>
+                              </a>
+                          </div>
+
+                          <div :class="['rounded-lg p-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                              <h3 class="text-lg font-semibold mb-4" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">关于项目</h3>
+                              <div :class="['text-sm leading-relaxed space-y-3', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-600']">
+                                  <p>ReadZen 是一款禅意风格的每日一文阅读器，支持本地文章上传与管理。</p>
+                                  <p>主要功能：</p>
+                                  <ul class="list-disc list-inside space-y-1 ml-2">
+                                      <li>每日一文推荐</li>
+                                      <li>本地文章上传（支持单文件和文件夹）</li>
+                                      <li>文章收藏与管理</li>
+                                      <li>个性化阅读设置</li>
+                                      <li>用户认证与权限管理</li>
+                                  </ul>
+                              </div>
+                          </div>
+
+                          <div class="mt-6 text-center">
+                              <p class="text-[10px] opacity-40">Content provided by qhsou.com</p>
                           </div>
                       </div>
                   </div>
@@ -950,6 +1463,12 @@
                             <div class="flex items-center justify-between mb-2">
                                 <span :style="{ color: textClass }" class="text-sm font-medium">{{ user.username }}</span>
                             </div>
+                            
+                            <!-- 邮箱显示 -->
+                            <div v-if="user.email" class="mb-2 px-3 py-2 rounded text-xs" :style="{ color: isDark ? '#9ca3af' : '#6b7280' }">
+                                <span>邮箱: {{ user.email }}</span>
+                            </div>
+                            
                             <button 
                                 @click="openChangePassword"
                                 :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', hoverBgClass + ' text-gray-700']"
@@ -959,6 +1478,17 @@
                                 </svg>
                                 修改密码
                             </button>
+                            
+                            <button 
+                                @click="openChangeEmail"
+                                :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors mb-1', hoverBgClass + ' text-gray-700']"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                                </svg>
+                                修改邮箱
+                            </button>
+                            
                             <button 
                                 @click="doLogout"
                                 :class="['w-full flex items-center gap-2 px-3 py-2 rounded text-sm transition-colors', hoverBgClass + ' text-gray-700']"
@@ -1091,13 +1621,219 @@
                         {{ changePasswordError }}
                     </div>
                     
-                    <button 
+                    <button
                         @click="doChangePassword"
                         :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
                         :disabled="changePasswordLoading"
                     >
                         {{ changePasswordLoading ? '修改中...' : '确认修改' }}
                     </button>
+                </div>
+            </div>
+
+            <!-- 修改用户名弹窗 -->
+            <div v-if="showChangeUsername" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showChangeUsername = false">
+                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                            修改用户名
+                        </h3>
+                        <button @click="showChangeUsername = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <p :class="['text-xs mb-3', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                        用户名只能包含字母、数字、下划线和中文，长度2-20个字符
+                    </p>
+
+                    <input
+                        v-model="changeUsernameForm.new_username"
+                        type="text"
+                        placeholder="新用户名"
+                        :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+                    <input
+                        v-model="changeUsernameForm.password"
+                        type="password"
+                        placeholder="输入密码确认身份"
+                        @keyup.enter="doChangeUsername"
+                        :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                    />
+
+                    <div v-if="changeUsernameError" :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-red-400' : 'text-red-500']">
+                        {{ changeUsernameError }}
+                    </div>
+
+                    <button
+                        @click="doChangeUsername"
+                        :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                        :disabled="changeUsernameLoading"
+                    >
+                        {{ changeUsernameLoading ? '修改中...' : '确认修改' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- 文章来源管理页面 (仅 admin 可见) -->
+            <div v-else-if="activeTab === 'sources'" class="h-full overflow-y-auto p-6">
+                <div class="max-w-4xl mx-auto">
+                    <div v-if="!user || user.username !== 'admin'" class="text-center py-12">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 mx-auto mb-4 opacity-30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <p class="text-lg opacity-60">权限不足</p>
+                        <p class="text-sm opacity-40 mt-2">只有管理员可以管理文章来源</p>
+                    </div>
+                    <div v-else>
+                        <div :class="['flex justify-between items-center gap-4 mb-6 p-4 rounded-lg', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                            <div>
+                                <h3 class="text-lg font-semibold" :style="{ color: backgroundColor === 'dark' ? '#e5e7eb' : '#374151' }">文章来源管理</h3>
+                                <p :class="['text-sm mt-1', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">添加、编辑、启用/禁用并设置轮询算法</p>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <select v-model="globalAlgorithm" @change="setGlobalAlgorithm" :class="['px-3 py-1.5 rounded-lg text-sm border cursor-pointer', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-700']">
+                                    <option value="sequential">顺序轮询</option>
+                                    <option value="random">随机轮询</option>
+                                </select>
+                                <button @click="loadSources" :class="['px-4 py-1.5 rounded-lg text-sm font-medium transition-colors', backgroundColor === 'dark' ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white']">刷新</button>
+                            </div>
+                        </div>
+
+                        <div :class="['rounded-lg overflow-hidden mb-6', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                            <div class="overflow-x-auto">
+                                <table class="w-full min-w-[600px] md:min-w-full">
+                                    <thead :class="['text-left text-sm font-medium', backgroundColor === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-700']">
+                                        <tr>
+                                            <th class="px-4 py-3">名称</th>
+                                            <th class="px-4 py-3">URL / 验证字段</th>
+                                            <th class="px-4 py-3">轮询算法</th>
+                                            <th class="px-4 py-3">状态</th>
+                                            <th class="px-4 py-3">操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="text-sm" :class="backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-700'">
+                                        <tr v-for="s in sources" :key="s.id" class="border-t">
+                                            <td class="px-4 py-3 align-top">
+                                                <div class="font-medium">{{ s.name }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <div class="text-xs break-all">{{ s.url }}</div>
+                                                <div class="text-xs opacity-60">{{ s.api_validation }}</div>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <select v-model="s.polling_algorithm" @change="updateSource(s)" class="px-2 py-1 text-sm rounded border">
+                                                    <option value="sequential">顺序</option>
+                                                    <option value="random">随机</option>
+                                                </select>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <label class="inline-flex items-center">
+                                                    <input type="checkbox" :checked="s.enabled" @change="toggleSource(s.id)" class="form-checkbox" />
+                                                    <span class="ml-2 text-sm">{{ s.enabled ? '已启用' : '已禁用' }}</span>
+                                                </label>
+                                            </td>
+                                            <td class="px-4 py-3 align-top">
+                                                <div class="flex items-center gap-2">
+                                                    <button @click="editSource(s)" class="px-2 py-1 text-sm rounded border">编辑</button>
+                                                    <button @click="deleteSource(s.id)" class="px-2 py-1 text-sm rounded border text-red-600">删除</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div :class="['rounded-lg p-4', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white border border-gray-200']">
+                            <h4 class="text-sm font-medium mb-3">添加新文章源</h4>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <input v-model="newSource.name" placeholder="名称" class="px-3 py-2 border rounded" />
+                                <input v-model="newSource.url" placeholder="API 地址" class="px-3 py-2 border rounded" />
+                                <input v-model="newSource.api_validation" placeholder="验证字段 (逗号分隔，可选)" class="px-3 py-2 border rounded md:col-span-2" />
+                                <select v-model="newSource.polling_algorithm" class="px-3 py-2 border rounded">
+                                    <option value="sequential">顺序</option>
+                                    <option value="random">随机</option>
+                                </select>
+                                <div class="flex items-center gap-2">
+                                    <label class="inline-flex items-center"><input type="checkbox" v-model="newSource.enabled" class="form-checkbox" /> <span class="ml-2">启用</span></label>
+                                </div>
+                            </div>
+                            <div class="mt-4 flex gap-2">
+                                <button @click="createSource" class="px-4 py-2 rounded bg-blue-500 text-white">添加</button>
+                                <button @click="() => { newSource.name=''; newSource.url=''; newSource.api_validation=''; newSource.polling_algorithm='sequential'; newSource.enabled=true }" class="px-4 py-2 rounded border">重置</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 修改邮箱弹窗 -->
+            <div v-if="showChangeEmail" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" @click.self="showChangeEmail = false">
+                <div :class="['w-96 p-6 rounded-lg shadow-xl', backgroundColor === 'dark' ? 'bg-gray-800' : 'bg-white']">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 :class="['text-lg font-semibold', backgroundColor === 'dark' ? 'text-white' : 'text-gray-800']">
+                            修改邮箱
+                        </h3>
+                        <button @click="showChangeEmail = false" :class="['text-gray-500 hover:text-gray-700', backgroundColor === 'dark' ? 'text-gray-400 hover:text-gray-300' : '']">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    
+                    <div v-if="!changeEmailStep2">
+                        <input 
+                            v-model="changeEmailForm.new_email"
+                            type="email"
+                            placeholder="新邮箱地址"
+                            :class="['w-full px-3 py-2 mb-3 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <p :class="['text-xs mb-4', backgroundColor === 'dark' ? 'text-gray-400' : 'text-gray-500']">
+                            将发送验证码到新邮箱
+                        </p>
+                        <button 
+                            @click="doChangeEmail"
+                            :class="['w-full py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                            :disabled="changeEmailLoading"
+                        >
+                            {{ changeEmailLoading ? '发送中...' : '发送验证码' }}
+                        </button>
+                    </div>
+                    
+                    <div v-else>
+                        <p :class="['text-sm mb-3', backgroundColor === 'dark' ? 'text-gray-300' : 'text-gray-600']">
+                            验证码已发送至: {{ changeEmailForm.new_email }}
+                        </p>
+                        <input 
+                            v-model="changeEmailForm.code"
+                            type="text"
+                            placeholder="验证码"
+                            maxlength="6"
+                            :class="['w-full px-3 py-2 mb-4 border rounded text-sm', backgroundColor === 'dark' ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300 text-gray-800']"
+                        />
+                        <div class="flex gap-2">
+                            <button 
+                                @click="changeEmailStep2 = false"
+                                :class="['flex-1 py-2 rounded text-sm font-medium border transition-colors', backgroundColor === 'dark' ? 'border-gray-600 hover:bg-gray-700 text-gray-300' : 'border-gray-300 hover:bg-gray-50 text-gray-700']"
+                            >
+                                返回
+                            </button>
+                            <button 
+                                @click="doVerifyChangeEmail"
+                                :class="['flex-1 py-2 rounded text-sm font-medium text-white transition-colors', backgroundColor === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600']"
+                                :disabled="changeEmailLoading"
+                            >
+                                {{ changeEmailLoading ? '验证中...' : '确认修改' }}
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div v-if="changeEmailError" :class="['text-sm mt-3', backgroundColor === 'dark' ? 'text-red-400' : 'text-red-500']">
+                        {{ changeEmailError }}
+                    </div>
                 </div>
             </div>
         </div>
@@ -1168,24 +1904,54 @@
 
                  // Toast 通知系统
                  const toasts = ref([]);
-                 const showToast = (msg, type = 'info') => {
+                 const showToast = (msg, type = 'info', duration = 3000) => {
                      const id = Date.now();
                      toasts.value.push({ id, msg, type });
                      setTimeout(() => {
                          toasts.value = toasts.value.filter(t => t.id !== id);
-                     }, 3000);
+                     }, duration);
                  };
 
                  // 上传的文章列表（从数据库获取）
                  const uploadedArticles = ref([]);
-                
-                 // 监听标签页切换，保存到 localStorage
+
+                // 版本信息
+                const versionInfo = ref({
+                    version: 'dev',
+                    build_date: '',
+                    git_commit: '',
+                    git_branch: '',
+                    repository: 'https://github.com/TIANXUAN13/ReadZen'
+                });
+                const loadingVersion = ref(false);
+
+                // 加载版本信息
+                const loadVersionInfo = async () => {
+                    loadingVersion.value = true;
+                    try {
+                        const res = await fetch('/api/version');
+                        if (res.ok) {
+                            versionInfo.value = await res.json();
+                        }
+                    } catch (e) {
+                        console.error('获取版本信息失败:', e);
+                    } finally {
+                        loadingVersion.value = false;
+                    }
+                };
+
+                // 监听标签页切换，保存到 localStorage
                  watch(activeTab, (newTab) => {
                      localStorage.setItem('readzen_active_tab', newTab);
-                     
+
                      // 如果切换到上传相关的标签，自动展开上传菜单
                      if (['upload-file', 'upload-folder', 'upload-list'].includes(newTab)) {
                          isUploadMenuOpen.value = true;
+                     }
+
+                     // 切换到关于页面时加载版本信息
+                     if (newTab === 'about') {
+                         loadVersionInfo();
                      }
                  });
 
@@ -1232,9 +1998,11 @@
                          'daily': '每日一文',
                          'favorites': '收藏文章',
                          'admin': '用户管理',
+                         'profile': '个人信息',
                          'upload-file': '上传文件',
                          'upload-folder': '上传文件夹',
-                         'upload-list': '上传列表'
+                         'upload-list': '上传列表',
+                         'about': '关于'
                      };
                      return titleMap[activeTab.value] || '本地文章';
                  };
@@ -1485,7 +2253,7 @@
                 const showAuth = ref(false);
                 const authMode = ref('login');
                 const loginForm = reactive({ username: '', password: '', captcha: '' });
-                const regForm = reactive({ username: '', password: '', confirm_password: '', captcha: '' });
+                const regForm = reactive({ username: '', email: '', password: '', confirm_password: '', captcha: '' });
                 const captchaImage = ref('');
                 
                 // 获取验证码图片
@@ -1525,7 +2293,9 @@
                     loginForm.password = '';
                     loginForm.captcha = '';
                     regForm.username = '';
+                    regForm.email = '';
                     regForm.password = '';
+                    regForm.confirm_password = '';
                     regForm.captcha = '';
                     fetchCaptcha();
                     showAuth.value = true;
@@ -1544,7 +2314,7 @@
                         credentials: 'include'
                     });
                     if (resp.ok) {
-                        user.value = await resp.json();
+                        await checkCurrentUser();
                         showAuth.value = false;
                     } else {
                         const err = await resp.json();
@@ -1557,7 +2327,10 @@
                 
                 // 注册
                 const doRegister = async () => {
-                    // 客户端校验：密码两次输入是否一致
+                    if (!regForm.email) {
+                        showToast('请输入邮箱地址', 'error');
+                        return;
+                    }
                     if (regForm.password !== regForm.confirm_password) {
                         showToast('两次输入的密码不一致', 'error');
                         return;
@@ -1567,6 +2340,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
                             username: regForm.username, 
+                            email: regForm.email,
                             password: regForm.password,
                             confirm_password: regForm.confirm_password,
                             captcha: regForm.captcha 
@@ -1574,8 +2348,12 @@
                         credentials: 'include'
                     });
                     if (resp.ok) {
-                        user.value = await resp.json();
+                        const data = await resp.json();
+                        user.value = data;
                         showAuth.value = false;
+                        if (data.message) {
+                            showToast(data.message, 'success');
+                        }
                     } else {
                         const err = await resp.json();
                         alert(err.error || '注册失败');
@@ -1697,15 +2475,12 @@
                         // 使用后端代理接口获取文章，避免跨域问题
                         const response = await fetch('/api/daily', { credentials: 'include' });
                         
-                        if (!response.ok) {
-                            throw new Error('网络请求失败');
-                        }
-
                         const data = await response.json();
                         
                         // 检查是否是错误响应
-                        if (data.error) {
-                            throw new Error(data.message || '获取文章失败');
+                        if (data.error || !response.ok) {
+                            const errorMsg = data.message || '获取文章失败，请检查源配置';
+                            throw new Error(errorMsg);
                         }
                         
                         // 更新文章数据（智能分段处理）
@@ -1713,8 +2488,11 @@
                         article.value = data;
                         currentDailyArticle.value = data;
                     } catch (err) {
-                        console.error(err);
-                        error.value = data?.message || '无法获取每日一文，请检查网络连接后重试。你可以通过"选择文件夹"或"选择文件"功能上传本地文章进行阅读。';
+                        console.error('获取文章失败:', err);
+                        const errorMsg = err.message || '无法获取每日一文，请检查网络连接。';
+                        error.value = errorMsg;
+                        // 显示 toast 提示
+                        showToast(errorMsg, 'error', 4000);
                     } finally {
                         loading.value = false;
                     }
@@ -2179,6 +2957,143 @@
                 // 用户管理相关
                 const allUsers = ref([]);
                 const loadingUsers = ref(false);
+                // 分页相关
+                const userPage = ref(1);
+                const userPerPage = ref(10);
+                const userTotal = ref(0);
+                const userTotalPages = ref(0);
+                const perPageOptions = [10, 20, 50, 100];
+                // 多选相关
+                const selectedUserIds = ref(new Set()); // 跨页多选，使用 Set 存储
+                const selectAllCurrentPage = ref(false);
+
+                // 文章来源管理
+                const sources = ref([]);
+                const loadingSources = ref(false);
+                const newSource = reactive({ name: '', url: '', api_validation: '', polling_algorithm: 'sequential', enabled: true });
+                const globalAlgorithm = ref('sequential');
+
+                const loadSources = async () => {
+                    if (!user.value || user.value.username !== 'admin') return;
+                    loadingSources.value = true;
+                    try {
+                        const res = await fetch('/api/sources', { credentials: 'include' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            sources.value = data.sources || [];
+                            globalAlgorithm.value = data.globalAlgorithm || 'sequential';
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '加载文章来源失败');
+                        }
+                    } catch (e) {
+                        console.error('加载文章来源失败:', e);
+                        alert('加载文章来源失败');
+                    } finally {
+                        loadingSources.value = false;
+                    }
+                };
+
+                const createSource = async () => {
+                    if (!newSource.name || !newSource.url) {
+                        alert('名称和URL不能为空');
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/sources', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify(newSource)
+                        });
+                        if (res.ok) {
+                            showToast('文章来源添加成功', 'success');
+                            newSource.name = ''; newSource.url = ''; newSource.api_validation = ''; newSource.polling_algorithm = 'sequential'; newSource.enabled = true;
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '添加失败');
+                        }
+                    } catch (e) {
+                        console.error('添加文章来源失败:', e);
+                        alert('添加失败');
+                    }
+                };
+
+                const deleteSource = async (id) => {
+                    if (!confirm('确定要删除该文章来源吗？')) return;
+                    try {
+                        const res = await fetch(`/api/sources/${id}`, { method: 'DELETE', credentials: 'include' });
+                        if (res.ok) {
+                            showToast('删除成功', 'success');
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '删除失败');
+                        }
+                    } catch (e) {
+                        console.error('删除失败:', e);
+                        alert('删除失败');
+                    }
+                };
+
+                const editSource = (s) => {
+                    // 简单地将条目复制到 newSource 以便编辑（覆盖添加表单）
+                    newSource.name = s.name || '';
+                    newSource.url = s.url || '';
+                    newSource.api_validation = s.api_validation || '';
+                    newSource.polling_algorithm = s.polling_algorithm || 'sequential';
+                    newSource.enabled = !!s.enabled;
+                    // 保存编辑时使用 updateSource
+                    newSource._editingId = s.id;
+                };
+
+                const updateSource = async (s) => {
+                    try {
+                        const id = s.id;
+                        const body = { name: s.name, url: s.url, api_validation: s.api_validation, polling_algorithm: s.polling_algorithm, enabled: !!s.enabled };
+                        const res = await fetch(`/api/sources/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify(body) });
+                        if (res.ok) {
+                            showToast('更新成功', 'success');
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '更新失败');
+                        }
+                    } catch (e) {
+                        console.error('更新失败:', e);
+                        alert('更新失败');
+                    }
+                };
+
+                const toggleSource = async (id) => {
+                    try {
+                        const res = await fetch(`/api/sources/${id}/toggle`, { method: 'POST', credentials: 'include' });
+                        if (res.ok) {
+                            await loadSources();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '切换失败');
+                        }
+                    } catch (e) {
+                        console.error('切换失败:', e);
+                        alert('切换失败');
+                    }
+                };
+
+                const setGlobalAlgorithm = async () => {
+                    try {
+                        const res = await fetch('/api/sources/algorithm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ algorithm: globalAlgorithm.value }) });
+                        if (res.ok) showToast('全局轮询算法已更新', 'success');
+                        else {
+                            const err = await res.json();
+                            alert(err.error || '更新失败');
+                        }
+                    } catch (e) {
+                        console.error('设置全局算法失败:', e);
+                        alert('设置失败');
+                    }
+                };
 
                 const loadAllUsers = async () => {
                     if (!user.value || user.value.username !== 'admin') {
@@ -2187,9 +3102,14 @@
                     }
                     loadingUsers.value = true;
                     try {
-                        const res = await fetch('/api/admin/users', { credentials: 'include' });
+                        const res = await fetch(`/api/admin/users?page=${userPage.value}&per_page=${userPerPage.value}`, { credentials: 'include' });
                         if (res.ok) {
-                            allUsers.value = await res.json();
+                            const data = await res.json();
+                            allUsers.value = data.users;
+                            userTotal.value = data.total;
+                            userTotalPages.value = data.total_pages;
+                            // 更新当前页的全选状态
+                            updateSelectAllState();
                         } else {
                             const err = await res.json();
                             alert(err.error || '加载用户列表失败');
@@ -2200,6 +3120,129 @@
                     } finally {
                         loadingUsers.value = false;
                     }
+                };
+
+                // 切换每页显示数量
+                const changePerPage = (newPerPage) => {
+                    userPerPage.value = newPerPage;
+                    userPage.value = 1; // 重置到第一页
+                    loadAllUsers();
+                };
+
+                // 翻页
+                const goToPage = (page) => {
+                    if (page >= 1 && page <= userTotalPages.value) {
+                        userPage.value = page;
+                        loadAllUsers();
+                    }
+                };
+
+                // 更新当前页全选状态
+                const updateSelectAllState = () => {
+                    const currentPageIds = allUsers.value
+                        .filter(u => u.id !== user.value?.id && u.username !== 'admin')
+                        .map(u => u.id);
+                    selectAllCurrentPage.value = currentPageIds.length > 0 &&
+                        currentPageIds.every(id => selectedUserIds.value.has(id));
+                };
+
+                // 切换单个用户选择
+                const toggleUserSelect = (userId) => {
+                    if (selectedUserIds.value.has(userId)) {
+                        selectedUserIds.value.delete(userId);
+                    } else {
+                        selectedUserIds.value.add(userId);
+                    }
+                    // 触发响应式更新
+                    selectedUserIds.value = new Set(selectedUserIds.value);
+                    updateSelectAllState();
+                };
+
+                // 当前页全选/取消全选
+                const toggleSelectAll = () => {
+                    const selectableUsers = allUsers.value.filter(u => u.id !== user.value?.id && u.username !== 'admin');
+                    if (selectAllCurrentPage.value) {
+                        // 取消全选
+                        selectableUsers.forEach(u => selectedUserIds.value.delete(u.id));
+                    } else {
+                        // 全选
+                        selectableUsers.forEach(u => selectedUserIds.value.add(u.id));
+                    }
+                    selectedUserIds.value = new Set(selectedUserIds.value);
+                    updateSelectAllState();
+                };
+
+                // 批量删除选中用户
+                const batchDeleteUsers = async () => {
+                    if (selectedUserIds.value.size === 0) {
+                        alert('请先选择要删除的用户');
+                        return;
+                    }
+                    if (!confirm(`确定要删除选中的 ${selectedUserIds.value.size} 个用户吗？这些用户的所有收藏也将被删除。`)) {
+                        return;
+                    }
+                    try {
+                        const res = await fetch('/api/admin/users/batch', {
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            body: JSON.stringify({ user_ids: Array.from(selectedUserIds.value) })
+                        });
+                        if (res.ok) {
+                            const data = await res.json();
+                            alert(`成功删除 ${data.deleted_count} 个用户`);
+                            selectedUserIds.value = new Set();
+                            loadAllUsers();
+                        } else {
+                            const err = await res.json();
+                            alert(err.error || '批量删除失败');
+                        }
+                    } catch (e) {
+                        console.error('批量删除失败:', e);
+                        alert('批量删除失败');
+                    }
+                };
+
+                // 清除所有选择
+                const clearSelection = () => {
+                    selectedUserIds.value = new Set();
+                    updateSelectAllState();
+                };
+
+                // 计算可见页码
+                const getVisiblePages = () => {
+                    const current = userPage.value;
+                    const total = userTotalPages.value;
+                    const pages = [];
+
+                    if (total <= 7) {
+                        for (let i = 1; i <= total; i++) {
+                            pages.push(i);
+                        }
+                    } else {
+                        if (current <= 4) {
+                            for (let i = 1; i <= 5; i++) {
+                                pages.push(i);
+                            }
+                            pages.push('...');
+                            pages.push(total);
+                        } else if (current >= total - 3) {
+                            pages.push(1);
+                            pages.push('...');
+                            for (let i = total - 4; i <= total; i++) {
+                                pages.push(i);
+                            }
+                        } else {
+                            pages.push(1);
+                            pages.push('...');
+                            for (let i = current - 1; i <= current + 1; i++) {
+                                pages.push(i);
+                            }
+                            pages.push('...');
+                            pages.push(total);
+                        }
+                    }
+                    return pages;
                 };
 
                 const deleteUser = async (userId) => {
@@ -2220,6 +3263,212 @@
                     } catch (e) {
                         console.error('删除用户失败:', e);
                         alert('删除用户失败');
+                    }
+                };
+                
+                // SMTP 配置相关
+                const smtpConfig = reactive({
+                    smtp_server: '',
+                    smtp_port: '587',
+                    smtp_username: '',
+                    smtp_password: '',
+                    smtp_from_name: 'ReadZen',
+                    smtp_from_email: '',
+                    smtp_use_ssl: 'false',
+                    smtp_use_tls: 'true',
+                    smtp_enabled: 'false'
+                });
+                const smtpConfigTls = computed({
+                    get: () => smtpConfig.smtp_use_tls === 'true',
+                    set: (val) => smtpConfig.smtp_use_tls = val ? 'true' : 'false'
+                });
+                const smtpConfigSsl = computed({
+                    get: () => smtpConfig.smtp_use_ssl === 'true',
+                    set: (val) => smtpConfig.smtp_use_ssl = val ? 'true' : 'false'
+                });
+                const savingSmtp = ref(false);
+                const testingSmtp = ref(false);
+                
+                const loadSmtpConfig = async () => {
+                    if (!user.value || user.value.username !== 'admin') return;
+                    try {
+                        const res = await fetch('/api/admin/smtp', { credentials: 'include' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            Object.keys(data).forEach(key => {
+                                if (key in smtpConfig) {
+                                    smtpConfig[key] = data[key] || '';
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error('加载SMTP配置失败:', e);
+                    }
+                };
+                
+                const saveSmtpConfig = async () => {
+                    savingSmtp.value = true;
+                    try {
+                        const res = await fetch('/api/admin/smtp', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(smtpConfig),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            showToast('SMTP配置已保存', 'success');
+                        } else {
+                            const err = await res.json();
+                            showToast(err.error || '保存失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('保存失败', 'error');
+                    } finally {
+                        savingSmtp.value = false;
+                    }
+                };
+                
+                const testSmtpConfig = async () => {
+                    const email = prompt('请输入测试邮箱地址：');
+                    if (!email) return;
+                    
+                    testingSmtp.value = true;
+                    try {
+                        const res = await fetch('/api/admin/smtp/test', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email }),
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '测试邮件已发送', 'success');
+                        } else {
+                            showToast(data.error || '发送失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('发送失败', 'error');
+                    } finally {
+                        testingSmtp.value = false;
+                    }
+                };
+                
+                // 管理员重置用户密码
+                const resetPasswordUserId = ref('');
+                const resetPasswordNew = ref('');
+                
+                const adminResetPassword = async () => {
+                    if (!resetPasswordUserId.value || !resetPasswordNew.value) return;
+                    if (!confirm('确定要重置该用户的密码吗？')) return;
+                    
+                    try {
+                        const res = await fetch(`/api/admin/reset-password/${resetPasswordUserId.value}`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ password: resetPasswordNew.value }),
+                            credentials: 'include'
+                        });
+                        if (res.ok) {
+                            showToast('密码已重置', 'success');
+                            resetPasswordUserId.value = '';
+                            resetPasswordNew.value = '';
+                        } else {
+                            const err = await res.json();
+                            showToast(err.error || '重置失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('重置失败', 'error');
+                    }
+                };
+                
+                // 忘记密码相关
+                const showForgotPassword = ref(false);
+                const smtpEnabled = ref(false);
+                const smtpInfo = ref({});
+                const forgotStep = ref(1);
+                const forgotEmail = ref('');
+                const forgotCode = ref('');
+                const forgotNewPassword = ref('');
+                const sendingCode = ref(false);
+                const resettingPassword = ref(false);
+                
+                const checkSmtpEnabled = async () => {
+                    try {
+                        const res = await fetch('/api/auth/check-smtp');
+                        const data = await res.json();
+                        smtpEnabled.value = data.enabled;
+                        smtpInfo.value = data;
+                    } catch (e) {
+                        smtpEnabled.value = false;
+                    }
+                };
+                
+                const openForgotPassword = async () => {
+                    await checkSmtpEnabled();
+                    forgotStep.value = 1;
+                    forgotEmail.value = '';
+                    forgotCode.value = '';
+                    forgotNewPassword.value = '';
+                    showForgotPassword.value = true;
+                };
+                
+                const closeForgotPassword = () => {
+                    showForgotPassword.value = false;
+                    authMode.value = 'login';
+                    showAuth.value = true;
+                };
+                
+                const sendResetCode = async () => {
+                    if (!forgotEmail.value) return;
+                    
+                    sendingCode.value = true;
+                    try {
+                        const res = await fetch('/api/auth/forgot-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: forgotEmail.value }),
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '验证码已发送', 'success');
+                            forgotStep.value = 2;
+                        } else {
+                            showToast(data.error || '发送失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('发送失败', 'error');
+                    } finally {
+                        sendingCode.value = false;
+                    }
+                };
+                
+                const resetPassword = async () => {
+                    if (!forgotCode.value || !forgotNewPassword.value) return;
+                    
+                    resettingPassword.value = true;
+                    try {
+                        const res = await fetch('/api/auth/reset-password', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: forgotEmail.value,
+                                code: forgotCode.value,
+                                password: forgotNewPassword.value
+                            }),
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '密码重置成功', 'success');
+                            forgotStep.value = 3;
+                        } else {
+                            showToast(data.error || '重置失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('重置失败', 'error');
+                    } finally {
+                        resettingPassword.value = false;
                     }
                 };
 
@@ -2287,10 +3536,185 @@
                     }
                 };
 
-                // 当切换到用户管理页面时加载用户列表
+                // 修改用户名相关
+                const showChangeUsername = ref(false);
+                const changeUsernameForm = reactive({
+                    new_username: '',
+                    password: ''
+                });
+                const changeUsernameError = ref('');
+                const changeUsernameLoading = ref(false);
+
+                const openChangeUsername = () => {
+                    changeUsernameForm.new_username = '';
+                    changeUsernameForm.password = '';
+                    changeUsernameError.value = '';
+                    showChangeUsername.value = true;
+                };
+
+                const doChangeUsername = async () => {
+                    changeUsernameError.value = '';
+
+                    if (!changeUsernameForm.new_username || !changeUsernameForm.password) {
+                        changeUsernameError.value = '请填写完整信息';
+                        return;
+                    }
+
+                    if (changeUsernameForm.new_username.length < 2 || changeUsernameForm.new_username.length > 20) {
+                        changeUsernameError.value = '用户名长度需要2-20个字符';
+                        return;
+                    }
+
+                    changeUsernameLoading.value = true;
+
+                    try {
+                        const res = await fetch('/api/auth/change-username', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                new_username: changeUsernameForm.new_username,
+                                password: changeUsernameForm.password
+                            }),
+                            credentials: 'include'
+                        });
+
+                        if (res.ok) {
+                            const data = await res.json();
+                            showChangeUsername.value = false;
+                            // 更新本地用户信息
+                            user.value = { ...user.value, username: data.username };
+                            showToast('用户名修改成功', 'success');
+                        } else {
+                            const err = await res.json();
+                            changeUsernameError.value = err.error || '修改失败';
+                        }
+                    } catch (e) {
+                        console.error('修改用户名失败:', e);
+                        changeUsernameError.value = '修改失败，请稍后重试';
+                    } finally {
+                        changeUsernameLoading.value = false;
+                    }
+                };
+
+                // 修改邮箱相关
+                const showChangeEmail = ref(false);
+                const changeEmailStep2 = ref(false);
+                const changeEmailForm = reactive({
+                    new_email: '',
+                    code: ''
+                });
+                const changeEmailError = ref('');
+                const changeEmailLoading = ref(false);
+
+                const openChangeEmail = () => {
+                    changeEmailForm.new_email = '';
+                    changeEmailForm.code = '';
+                    changeEmailError.value = '';
+                    changeEmailStep2.value = false;
+                    showChangeEmail.value = true;
+                };
+
+                const doChangeEmail = async () => {
+                    changeEmailError.value = '';
+                    
+                    if (!changeEmailForm.new_email) {
+                        changeEmailError.value = '请输入邮箱地址';
+                        return;
+                    }
+                    
+                    changeEmailLoading.value = true;
+                    
+                    try {
+                        const res = await fetch('/api/auth/change-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: changeEmailForm.new_email
+                            }),
+                            credentials: 'include'
+                        });
+                        
+                        const data = await res.json();
+                        if (res.ok && data.need_code) {
+                            changeEmailStep2.value = true;
+                            showToast('验证码已发送到新邮箱', 'success');
+                        } else if (res.ok) {
+                            showChangeEmail.value = false;
+                            await checkCurrentUser();
+                            showToast(data.message || '邮箱修改成功', 'success');
+                        } else {
+                            changeEmailError.value = data.error || '发送失败';
+                        }
+                    } catch (e) {
+                        console.error('修改邮箱失败:', e);
+                        changeEmailError.value = '发送失败，请稍后重试';
+                    } finally {
+                        changeEmailLoading.value = false;
+                    }
+                };
+
+                const doVerifyChangeEmail = async () => {
+                    changeEmailError.value = '';
+                    
+                    if (!changeEmailForm.code) {
+                        changeEmailError.value = '请输入验证码';
+                        return;
+                    }
+                    
+                    changeEmailLoading.value = true;
+                    
+                    try {
+                        const res = await fetch('/api/auth/change-email', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                email: changeEmailForm.new_email,
+                                code: changeEmailForm.code
+                            }),
+                            credentials: 'include'
+                        });
+                        
+                        const data = await res.json();
+                        if (res.ok) {
+                            showChangeEmail.value = false;
+                            await checkCurrentUser();
+                            showToast(data.message || '邮箱修改成功', 'success');
+                        } else {
+                            changeEmailError.value = data.error || '验证失败';
+                        }
+                    } catch (e) {
+                        console.error('验证邮箱失败:', e);
+                        changeEmailError.value = '验证失败，请稍后重试';
+                    } finally {
+                        changeEmailLoading.value = false;
+                    }
+                };
+
+                // 重发验证邮件
+                const resendVerification = async () => {
+                    try {
+                        const res = await fetch('/api/auth/resend-verification', {
+                            method: 'POST',
+                            credentials: 'include'
+                        });
+                        const data = await res.json();
+                        if (res.ok) {
+                            showToast(data.message || '验证邮件已发送', 'success');
+                        } else {
+                            showToast(data.error || '发送失败', 'error');
+                        }
+                    } catch (e) {
+                        showToast('发送失败', 'error');
+                    }
+                };
+
+                // 当切换到用户管理或文章来源页面时加载相应数据
                 watch(() => activeTab.value, (newTab) => {
                     if (newTab === 'admin') {
                         loadAllUsers();
+                        loadSmtpConfig();
+                    } else if (newTab === 'sources') {
+                        loadSources();
                     }
                 });
 
@@ -2298,10 +3722,14 @@
                  watch(() => user.value, (newUser) => {
                      if (newUser) {
                          loadFavorites();
-                         // 如果当前就在用户管理页面，登录后自动加载列表
-                         if (activeTab.value === 'admin') {
-                             loadAllUsers();
-                         }
+                         // 如果当前就在用户管理页面，登录后自动加载列表和SMTP配置
+                        if (activeTab.value === 'admin') {
+                            loadAllUsers();
+                            loadSmtpConfig();
+                        }
+                        if (activeTab.value === 'sources') {
+                            loadSources();
+                        }
                      } else {
                          favoriteArticles.value = [];
                          allUsers.value = [];
@@ -2390,12 +3818,43 @@
                         loadingUsers,
                         loadAllUsers,
                         deleteUser,
+                        // 分页相关
+                        userPage,
+                        userPerPage,
+                        userTotal,
+                        userTotalPages,
+                        perPageOptions,
+                        changePerPage,
+                        goToPage,
+                        getVisiblePages,
+                        // 多选相关
+                        selectedUserIds,
+                        selectAllCurrentPage,
+                        toggleUserSelect,
+                        toggleSelectAll,
+                        batchDeleteUsers,
+                        clearSelection,
                         showChangePassword,
                         changePasswordForm,
                         changePasswordError,
                         changePasswordLoading,
                         openChangePassword,
                         doChangePassword,
+                        showChangeUsername,
+                        changeUsernameForm,
+                        changeUsernameError,
+                        changeUsernameLoading,
+                        openChangeUsername,
+                        doChangeUsername,
+                        showChangeEmail,
+                        changeEmailStep2,
+                        changeEmailForm,
+                        changeEmailError,
+                        changeEmailLoading,
+                        openChangeEmail,
+                        doChangeEmail,
+                        doVerifyChangeEmail,
+                        resendVerification,
                         formatDate,
                         getArticle,
                          adjustFontSize,
@@ -2404,9 +3863,52 @@
                           viewLocalArticle,
                          selectFolder,
                          selectSingleFile,
-                         isSidebarCollapsed,
-                         handleArticleScroll
-                 };
+isSidebarCollapsed,
+                          handleArticleScroll,
+                         // 文章来源管理
+                         sources,
+                         loadingSources,
+                         newSource,
+                         loadSources,
+                         createSource,
+                         deleteSource,
+                         editSource,
+                         updateSource,
+                         toggleSource,
+                         globalAlgorithm,
+                         setGlobalAlgorithm,
+                          // SMTP 配置
+                          smtpConfig,
+                          smtpConfigTls,
+                          smtpConfigSsl,
+                          savingSmtp,
+                          testingSmtp,
+                          loadSmtpConfig,
+                          saveSmtpConfig,
+                          testSmtpConfig,
+                          // 管理员重置密码
+                          resetPasswordUserId,
+                          resetPasswordNew,
+                          adminResetPassword,
+                          // 忘记密码
+                          showForgotPassword,
+                          smtpEnabled,
+                          smtpInfo,
+                          forgotStep,
+                          forgotEmail,
+                          forgotCode,
+                          forgotNewPassword,
+                          sendingCode,
+                          resettingPassword,
+                          openForgotPassword,
+                          closeForgotPassword,
+                          sendResetCode,
+                          resetPassword,
+                          // 版本信息
+                          versionInfo,
+                          loadingVersion,
+                          loadVersionInfo
+                  };
             }
         }).mount('#app');
         </script>
